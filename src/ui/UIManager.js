@@ -10,8 +10,7 @@ export class UIManager {
 
         // Привязываем кнопку конца хода
         this.endTurnBtn.addEventListener('click', () => {
-            console.log("Turn Ended");
-            // В будущем здесь будет вызов this.game.endTurn();
+            this.game.endTurn();
         });
     }
 
