@@ -1,30 +1,34 @@
-import { Application } from 'pixi.js';
+import { Application, Assets } from 'pixi.js';
 import { GameManager } from './game/GameManager';
 import gsap from 'gsap';
 import { PixiPlugin } from 'gsap/PixiPlugin';
 import * as PIXI from 'pixi.js';
+import { HERO_IMG, ENEMY_IMG, FLOOR_IMG } from './AssetsManifest';
 
-// Регистрируем плагин для анимации Pixi свойств
 gsap.registerPlugin(PixiPlugin);
 PixiPlugin.registerPIXI(PIXI);
 
-// Глобальные константы
 export const TILE_SIZE = 64;
 export const GRID_W = 4;
 export const GRID_H = 8;
 
 (async () => {
-    // Инициализация Pixi
     const app = new Application();
     await app.init({ 
         resizeTo: window, 
-        backgroundColor: 0x2a2a2a, 
+        backgroundColor: 0x050505, // Почти черный фон
         antialias: true 
     });
     document.body.appendChild(app.canvas);
     document.body.style.overflow = 'hidden';
     document.body.style.margin = '0';
-    
-    // Запускаем игру
+
+    // Загружаем SVG как текстуры
+    await Assets.load([
+        { alias: 'hero', src: HERO_IMG },
+        { alias: 'enemy', src: ENEMY_IMG },
+        { alias: 'floor', src: FLOOR_IMG }
+    ]);
+
     new GameManager(app);
 })();

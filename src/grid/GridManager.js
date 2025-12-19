@@ -1,10 +1,10 @@
-import { Container, Graphics } from 'pixi.js';
+import { Container, Sprite } from 'pixi.js';
 import { TILE_SIZE, GRID_W, GRID_H } from '../main';
 
 export class GridManager {
     constructor(app, onTileClick) {
         this.app = app;
-        this.onTileClick = onTileClick; // Callback функция при клике
+        this.onTileClick = onTileClick;
         this.container = new Container();
         this.tiles = [];
 
@@ -23,32 +23,55 @@ export class GridManager {
     }
 
     createTile(x, y) {
-        const g = new Graphics();
+        const sprite = Sprite.from('floor');
+        sprite.width = TILE_SIZE;
+        sprite.height = TILE_SIZE;
+        sprite.x = x * TILE_SIZE;
+        sprite.y = y * TILE_SIZE;
         
-        // Рисуем квадрат
-        g.rect(0, 0, TILE_SIZE - 2, TILE_SIZE - 2);
-        g.fill(0x3e3e3e);
-        g.stroke({ width: 1, color: 0x555555 });
+        // Немного рандомизируем прозрачность для "живости" пола
+        sprite.alpha = 0.8 + Math.random() * 0.2; 
 
-        // Позиционируем
-        g.x = x * TILE_SIZE;
-        g.y = y * TILE_SIZE;
-
-        // Интерактивность
-        g.interactive = true;
-        g.cursor = 'pointer';
-
-        // Hover эффекты
-        g.on('pointerover', () => { g.tint = 0x888888; });
-        g.on('pointerout', () => { g.tint = 0xffffff; });
+        sprite.interactive = true;
+        sprite.cursor = 'pointer';
         
-        // Обработка клика
-        g.on('pointerdown', () => {
-            if (this.onTileClick) {
-                this.onTileClick(x, y);
-            }
+        // Запоминаем дефолтный цвет (белый = оригинал)
+        const defaultTint = 0xffffff;
+
+        sprite.on('pointerover', () => { 
+            // Меняем альфу при наведении, только если тайл не перекрашен подсветкой
+            if (sprite.tint === defaultTint) sprite.alpha = 1; 
+        });
+        sprite.on('pointerout', () => { 
+            if (sprite.tint === defaultTint) sprite.alpha = 0.9; 
+        });
+        
+        sprite.on('pointerdown', () => {
+            if (this.onTileClick) this.onTileClick(x, y);
         });
 
-        return { x, y, visual: g, occupied: false };
+        return { x, y, visual: sprite, defaultTint };
+    }
+
+    // Метод включения подсветки
+    highlightTiles(tilesToHighlight, color) {
+        // Сначала сбрасываем старую подсветку
+        this.resetHighlights();
+
+        tilesToHighlight.forEach(pos => {
+            const tile = this.tiles.find(t => t.x === pos.x && t.y === pos.y);
+            if (tile) {
+                tile.visual.tint = color;
+                tile.visual.alpha = 1; // Делаем ярким
+            }
+        });
+    }
+
+    // Метод сброса
+    resetHighlights() {
+        this.tiles.forEach(tile => {
+            tile.visual.tint = tile.defaultTint; // Возвращаем белый цвет
+            tile.visual.alpha = 0.8 + Math.random() * 0.2; // Возвращаем легкую прозрачность
+        });
     }
 }

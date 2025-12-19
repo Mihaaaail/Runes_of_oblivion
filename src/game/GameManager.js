@@ -17,7 +17,7 @@ export class GameManager {
         this.player.maxMana = 3;
 
         this.enemy = new Unit('enemy', 2, 1, 0xff0000, 30);
-        this.enemy.mana = 0; // Врагу мана пока не нужна
+        this.enemy.mana = 0;
         
         this.gridManager.container.addChild(this.player.container);
         this.gridManager.container.addChild(this.enemy.container);
@@ -25,16 +25,16 @@ export class GameManager {
         // 3. UI и Рука
         this.ui = new UIManager(this);
         
-        // Начальная колода (бесконечная)
+        // Начальная колода
         this.hand = [
-            { name: "Fireball", type: "attack", cost: 1, val: 5, desc: "Deal 5 dmg (Range 3)", selected: false },
-            { name: "Heal", type: "heal", cost: 1, val: 5, desc: "Heal 5 HP", selected: false },
-            { name: "Dash", type: "move", cost: 0, val: 3, desc: "Move to tile", selected: false },
-            { name: "Smite", type: "attack", cost: 2, val: 10, desc: "Deal 10 dmg (Range 2)", selected: false }
+            { name: "Fireball", type: "attack", cost: 1, val: 5, range: 3, desc: "Deal 5 dmg (Range 3)", selected: false },
+            { name: "Heal", type: "heal", cost: 1, val: 5, range: 0, desc: "Heal 5 HP", selected: false },
+            { name: "Dash", type: "move", cost: 0, val: 3, range: 3, desc: "Move to tile", selected: false },
+            { name: "Smite", type: "attack", cost: 2, val: 10, range: 2, desc: "Deal 10 dmg (Range 2)", selected: false }
         ];
 
         this.selectedCardIndex = -1;
-        this.isPlayerTurn = true; // Чей ход?
+        this.isPlayerTurn = true;
 
         this.updateUI();
         this.centerGrid();
@@ -45,25 +45,76 @@ export class GameManager {
         this.ui.updateStats(this.player, this.enemy);
         this.ui.renderHand(this.hand);
         
-        // Если ход врага — блокируем кнопку
+        // Проверка победы
+        if (this.enemy.hp <= 0) {
+            this.ui.showGameOver("VICTORY!");
+            this.isPlayerTurn = false;
+            this.ui.endTurnBtn.disabled = true;
+            this.gridManager.resetHighlights();
+            return;
+        } 
+        else if (this.player.hp <= 0) {
+            this.ui.showGameOver("DEFEAT...");
+            this.isPlayerTurn = false;
+            this.ui.endTurnBtn.disabled = true;
+            this.gridManager.resetHighlights();
+            return;
+        }
+
         this.ui.endTurnBtn.disabled = !this.isPlayerTurn;
         this.ui.endTurnBtn.innerText = this.isPlayerTurn ? "END TURN" : "ENEMY TURN...";
         this.ui.endTurnBtn.style.opacity = this.isPlayerTurn ? "1" : "0.5";
     }
 
     selectCard(index) {
-        if (!this.isPlayerTurn) return; // Нельзя выбирать в чужой ход
+        if (!this.isPlayerTurn) return;
 
-        // Логика переключения выделения
+        // Если кликнули на уже выбранную карту — отмена
         if (this.selectedCardIndex === index) {
             this.hand[index].selected = false;
             this.selectedCardIndex = -1;
+            this.gridManager.resetHighlights(); // Сброс подсветки
         } else {
+            // Сброс всех
             this.hand.forEach(c => c.selected = false);
+            // Выбор новой
             this.hand[index].selected = true;
             this.selectedCardIndex = index;
+            
+            // ПОДСВЕТКА ЗОНЫ
+            this.highlightCardRange(this.hand[index]);
         }
         this.updateUI();
+    }
+
+    highlightCardRange(card) {
+        const tilesToHighlight = [];
+        const range = card.range !== undefined ? card.range : 1;
+
+        // Если это Heal — подсвечиваем только игрока
+        if (card.type === 'heal') {
+            this.gridManager.highlightTiles([{x: this.player.gridX, y: this.player.gridY}], 0x4444ff); // Синий
+            return;
+        }
+
+        // Перебор всех клеток сетки
+        for (let y = 0; y < GRID_H; y++) {
+            for (let x = 0; x < GRID_W; x++) {
+                const dist = Math.abs(this.player.gridX - x) + Math.abs(this.player.gridY - y);
+                
+                // Если клетка в радиусе (и не мы сами)
+                if (dist <= range && dist > 0) {
+                    tilesToHighlight.push({x, y});
+                }
+            }
+        }
+
+        // Цвет подсветки
+        let color = 0xffffff;
+        if (card.type === 'attack') color = 0xff4444; // Красный
+        if (card.type === 'move') color = 0x44ff44;   // Зеленый
+
+        this.gridManager.highlightTiles(tilesToHighlight, color);
     }
 
     handleTileClick(x, y) {
@@ -76,20 +127,19 @@ export class GameManager {
         // А. ИСПОЛЬЗОВАНИЕ КАРТЫ
         if (this.selectedCardIndex !== -1) {
             const card = this.hand[this.selectedCardIndex];
+            const range = card.range !== undefined ? card.range : 1;
             
             // 1. Проверка маны
             if (this.player.mana < card.cost) {
                 console.log("Not enough mana!");
-                // Можно добавить визуальную тряску UI
                 return;
             }
 
-            // 2. Применение по типам
+            // 2. Применение
             let success = false;
 
             if (card.type === "attack" && isEnemyThere) {
-                // Проверка дистанции (условно 3 клетки)
-                if (dist <= 3) {
+                if (dist <= range) {
                     this.enemy.takeDamage(card.val);
                     success = true;
                 } else {
@@ -97,34 +147,35 @@ export class GameManager {
                 }
             } 
             else if (card.type === "heal" && isPlayerThere) {
-                this.player.takeDamage(-card.val); // Отрицательный урон = хил
+                this.player.takeDamage(-card.val);
                 success = true;
             }
             else if (card.type === "move" && !isEnemyThere && !isPlayerThere) {
-                if (dist <= card.val) {
+                if (dist <= range) { // Используем range вместо val для дальности перемещения
                     this.player.moveTo(x, y);
                     success = true;
                 }
             }
 
-            // 3. Если карта сработала
+            // 3. Успех
             if (success) {
                 this.player.mana -= card.cost;
-                this.hand.splice(this.selectedCardIndex, 1); // Удаляем карту
+                this.hand.splice(this.selectedCardIndex, 1);
                 this.selectedCardIndex = -1;
+                this.gridManager.resetHighlights(); // Сбрасываем подсветку
                 this.updateUI();
             }
             return;
         }
 
-        // Б. ОБЫЧНОЕ ДЕЙСТВИЕ (без карты)
-        // Движение (1 клетка)
+        // Б. ОБЫЧНОЕ ДЕЙСТВИЕ
         if (dist === 1 && !isEnemyThere) {
             this.player.moveTo(x, y);
+            this.gridManager.resetHighlights();
         } 
-        // Атака (в упор)
         else if (dist === 1 && isEnemyThere) {
-            this.enemy.takeDamage(3); // Базовая атака слабее карт
+            this.enemy.takeDamage(3);
+            this.gridManager.resetHighlights();
             this.updateUI();
         }
     }
@@ -135,22 +186,21 @@ export class GameManager {
         this.isPlayerTurn = false;
         this.selectedCardIndex = -1;
         this.hand.forEach(c => c.selected = false);
+        this.gridManager.resetHighlights(); // Сброс
         this.updateUI();
 
-        // Запускаем ход врага с задержкой
         setTimeout(() => this.enemyTurn(), 1000);
     }
 
     enemyTurn() {
-        // Простой AI: Иди к игроку и бей
+        if (this.enemy.hp <= 0) return;
+
         const dist = Math.abs(this.enemy.gridX - this.player.gridX) + Math.abs(this.enemy.gridY - this.player.gridY);
 
         if (dist === 1) {
-            // Если рядом — кусь
             this.player.takeDamage(6);
             console.log("Enemy attacks!");
         } else {
-            // Если далеко — шаг навстречу
             let newX = this.enemy.gridX;
             let newY = this.enemy.gridY;
 
@@ -159,7 +209,6 @@ export class GameManager {
             else if (this.player.gridY > this.enemy.gridY) newY++;
             else if (this.player.gridY < this.enemy.gridY) newY--;
 
-            // Проверка, не занято ли игроком
             if (!(newX === this.player.gridX && newY === this.player.gridY)) {
                 this.enemy.moveTo(newX, newY);
             }
@@ -167,14 +216,16 @@ export class GameManager {
 
         this.updateUI();
 
-        // Конец хода врага
         setTimeout(() => {
+            if (this.player.hp <= 0) {
+                this.updateUI();
+                return;
+            }
+
             this.isPlayerTurn = true;
-            
-            // Восстановление маны + Новая карта
             this.player.mana = this.player.maxMana;
             if (this.hand.length < 5) {
-                this.hand.push({ name: "Strike", type: "attack", cost: 1, val: 6, desc: "Deal 6 dmg", selected: false });
+                this.hand.push({ name: "Strike", type: "attack", cost: 1, val: 6, range: 1, desc: "Deal 6 dmg", selected: false });
             }
             
             this.updateUI();
@@ -185,7 +236,6 @@ export class GameManager {
         const container = this.gridManager.container;
         const width = GRID_W * TILE_SIZE;
         const height = GRID_H * TILE_SIZE;
-        
         container.x = (this.app.screen.width - width) / 2;
         container.y = (this.app.screen.height - height) / 2;
     }
