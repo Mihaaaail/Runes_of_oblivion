@@ -11,8 +11,9 @@ export class GameManager {
         // 1. Создаем сетку
         this.gridManager = new GridManager(app, (x, y) => this.handleTileClick(x, y));
         
-        // 2. Создаем юнитов
-        this.player = new Unit('player', 1, 6, 0x00ff00, 20);
+        // 2. Создаем юнитов (Центрируем для сетки 5x9)
+        // Игрок внизу (y=7), Враг вверху (y=1)
+        this.player = new Unit('player', 2, 7, 0x00ff00, 20);
         this.player.mana = 3; 
         this.player.maxMana = 3;
 
@@ -29,7 +30,7 @@ export class GameManager {
         this.hand = [
             { name: "Fireball", type: "attack", cost: 1, val: 5, range: 3, desc: "Deal 5 dmg (Range 3)", selected: false },
             { name: "Heal", type: "heal", cost: 1, val: 5, range: 0, desc: "Heal 5 HP", selected: false },
-            { name: "Dash", type: "move", cost: 0, val: 3, range: 3, desc: "Move to tile", selected: false },
+            { name: "Dash", type: "move", cost: 0, val: 3, range: 3, desc: "Move to tile (Range 3)", selected: false },
             { name: "Smite", type: "attack", cost: 2, val: 10, range: 2, desc: "Deal 10 dmg (Range 2)", selected: false }
         ];
 
@@ -151,7 +152,7 @@ export class GameManager {
                 success = true;
             }
             else if (card.type === "move" && !isEnemyThere && !isPlayerThere) {
-                if (dist <= range) { // Используем range вместо val для дальности перемещения
+                if (dist <= range) {
                     this.player.moveTo(x, y);
                     success = true;
                 }
@@ -162,7 +163,7 @@ export class GameManager {
                 this.player.mana -= card.cost;
                 this.hand.splice(this.selectedCardIndex, 1);
                 this.selectedCardIndex = -1;
-                this.gridManager.resetHighlights(); // Сбрасываем подсветку
+                this.gridManager.resetHighlights();
                 this.updateUI();
             }
             return;

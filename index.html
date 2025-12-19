@@ -8,16 +8,16 @@
       body { 
         margin: 0; 
         overflow: hidden; 
-        background: #1a1a1a; 
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+        background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%); 
+        font-family: 'Verdana', sans-serif; 
+        color: white;
       }
       
-      /* UI Слой поверх Canvas */
       #ui-layer {
         position: absolute;
         top: 0; left: 0;
         width: 100%; height: 100%;
-        pointer-events: none; /* Пропускает клики на canvas */
+        pointer-events: none;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -25,152 +25,173 @@
         box-sizing: border-box;
       }
 
-      /* Верхняя панель (ХП Врага) */
+      /* Панель Врага */
       .top-panel {
         align-self: center;
-        background: rgba(0, 0, 0, 0.7);
-        color: white;
-        padding: 10px 20px;
-        border-radius: 10px;
-        text-align: center;
-        border: 1px solid #ff4444;
+        background: rgba(40, 0, 0, 0.6);
+        border: 2px solid #ff4444;
+        box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
+        padding: 10px 30px;
+        border-radius: 0 0 15px 15px;
+        backdrop-filter: blur(5px);
+        transform: perspective(500px) rotateX(10deg);
       }
 
-      /* Нижняя панель (Рука карт + ХП Игрока) */
       .bottom-panel {
         display: flex;
         align-items: flex-end;
         justify-content: center;
-        gap: 20px;
-        pointer-events: auto; /* Включаем клики для карт */
-        margin-bottom: 20px;
+        gap: 30px;
+        pointer-events: auto;
+        padding-bottom: 20px;
       }
 
-      /* Инфо игрока */
+      /* Панель Игрока */
       .player-stats {
-        background: rgba(0, 0, 0, 0.7);
-        color: white;
+        background: rgba(0, 40, 0, 0.6);
+        border: 2px solid #44ff44;
+        box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
         padding: 15px;
         border-radius: 10px;
-        border: 1px solid #44ff44;
-        min-width: 100px;
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
+        min-width: 120px;
+        backdrop-filter: blur(5px);
       }
 
-      /* Контейнер руки */
+      /* КОНТЕЙНЕР КАРТ */
       #hand-container {
         display: flex;
-        gap: 10px;
+        gap: 15px;
+        perspective: 1000px;
       }
 
-      /* Карта */
+      /* КАРТА */
       .card {
-        width: 100px;
-        height: 140px;
-        background: linear-gradient(135deg, #2b2b2b 0%, #1a1a1a 100%);
-        border: 2px solid #888;
-        border-radius: 8px;
-        color: white;
+        width: 110px;
+        height: 160px;
+        background: rgba(30, 30, 40, 0.85);
+        border: 1px solid #555;
+        border-radius: 12px;
         display: flex;
         flex-direction: column;
         align-items: center;
         padding: 10px;
         cursor: pointer;
-        transition: transform 0.2s, box-shadow 0.2s;
-        user-select: none;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         position: relative;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        overflow: hidden;
+      }
+
+      .card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 5px;
+        background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+        opacity: 0.5;
       }
 
       .card:hover {
-        transform: translateY(-20px);
-        box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        transform: translateY(-25px) scale(1.05);
+        box-shadow: 0 0 25px rgba(0, 212, 255, 0.4);
+        border-color: #00d4ff;
+        background: rgba(40, 40, 60, 0.95);
         z-index: 10;
       }
       
       .card.selected {
         border-color: #ffd700;
-        box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
-        transform: translateY(-30px);
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+        transform: translateY(-35px) scale(1.1);
+        background: rgba(50, 50, 20, 0.9);
       }
 
       .card-cost {
         position: absolute;
-        top: 5px; left: 5px;
-        background: #4444ff;
-        width: 24px; height: 24px;
+        top: -5px; left: -5px;
+        background: #222;
+        border: 2px solid #00d4ff;
+        color: #00d4ff;
+        width: 28px; height: 28px;
         border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        font-weight: bold; font-size: 14px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        font-weight: bold; font-size: 16px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.8);
+        z-index: 2;
       }
 
       .card-name {
-        margin-top: 25px;
+        margin-top: 20px;
         font-weight: bold;
-        font-size: 14px;
-        text-align: center;
-        margin-bottom: 10px;
-        border-bottom: 1px solid #555;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #ddd;
+        border-bottom: 1px solid rgba(255,255,255,0.2);
         width: 100%;
+        text-align: center;
         padding-bottom: 5px;
       }
 
       .card-desc {
+        margin-top: 10px;
         font-size: 11px;
-        color: #ccc;
+        color: #aaa;
         text-align: center;
-        line-height: 1.2;
+        line-height: 1.4;
       }
 
-      /* Кнопка конца хода */
+      /* КНОПКА END TURN */
       #end-turn-btn {
-        padding: 15px 30px;
-        background: #ff6b6b;
-        color: white;
-        border: none;
+        padding: 15px 25px;
+        background: linear-gradient(135deg, #800000 0%, #400000 100%);
+        color: #ffaaaa;
+        border: 1px solid #ff4444;
         border-radius: 8px;
         font-weight: bold;
         cursor: pointer;
-        pointer-events: auto;
-        font-size: 16px;
-        box-shadow: 0 4px 0 #c0392b;
-        transition: transform 0.1s, box-shadow 0.1s;
+        font-size: 14px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        box-shadow: 0 4px 15px rgba(255, 0, 0, 0.2);
+        transition: all 0.2s;
+        height: 60px;
+        align-self: center;
       }
-      #end-turn-btn:hover { background: #ff5252; }
-      #end-turn-btn:active { 
-          transform: translateY(4px); 
-          box-shadow: 0 0 0 #c0392b; 
+      #end-turn-btn:hover:not(:disabled) { 
+          background: linear-gradient(135deg, #a00000 0%, #600000 100%);
+          box-shadow: 0 0 20px rgba(255, 68, 68, 0.6);
+          color: white;
+          transform: scale(1.05);
+      }
+      #end-turn-btn:active:not(:disabled) { transform: scale(0.95); }
+      #end-turn-btn:disabled {
+          background: #333;
+          border-color: #555;
+          color: #777;
+          cursor: not-allowed;
+          box-shadow: none;
       }
       
     </style>
   </head>
   <body>
-    <!-- Слой интерфейса -->
     <div id="ui-layer">
-      
       <div class="top-panel">
-        <div style="font-size: 12px; color: #aaa;">ENEMY</div>
-        <div id="enemy-hp-ui" style="font-size: 20px; font-weight: bold;">HP: 30</div>
+        <div style="font-size: 10px; color: #ff8888; letter-spacing: 2px;">ENEMY</div>
+        <div id="enemy-hp-ui" style="font-size: 24px; font-weight: bold; text-shadow: 0 0 10px red;">HP: 30</div>
       </div>
 
       <div class="bottom-panel">
         <div class="player-stats">
-            <div style="font-size: 12px; color: #aaa;">PLAYER</div>
-            <div id="player-hp-ui" style="font-weight: bold;">HP: 20</div>
-            <div id="player-mana-ui" style="color: #4444ff; font-weight: bold;">MP: 3/3</div>
+            <div style="font-size: 10px; color: #88ff88; letter-spacing: 2px;">PLAYER</div>
+            <div id="player-hp-ui" style="font-size: 18px; font-weight: bold;">HP: 20</div>
+            <div id="player-mana-ui" style="color: #00d4ff; font-weight: bold; margin-top: 5px;">MP: 3/3</div>
         </div>
 
-        <div id="hand-container">
-          <!-- Карты будут добавляться сюда через JS -->
-        </div>
+        <div id="hand-container"></div>
 
-        <button id="end-turn-btn">END TURN</button>
+        <button id="end-turn-btn">End Turn</button>
       </div>
     </div>
-    
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

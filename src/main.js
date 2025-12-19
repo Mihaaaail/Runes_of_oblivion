@@ -9,21 +9,20 @@ gsap.registerPlugin(PixiPlugin);
 PixiPlugin.registerPIXI(PIXI);
 
 export const TILE_SIZE = 64;
-export const GRID_W = 4;
-export const GRID_H = 8;
+export const GRID_W = 5; // Было 4, стало 5 (шире)
+export const GRID_H = 9; // Было 8, стало 9 (выше)
 
 (async () => {
     const app = new Application();
     await app.init({ 
         resizeTo: window, 
-        backgroundColor: 0x050505, // Почти черный фон
+        backgroundColor: 0x050505, 
         antialias: true 
     });
     document.body.appendChild(app.canvas);
     document.body.style.overflow = 'hidden';
     document.body.style.margin = '0';
 
-    // Загружаем SVG как текстуры
     await Assets.load([
         { alias: 'hero', src: HERO_IMG },
         { alias: 'enemy', src: ENEMY_IMG },
