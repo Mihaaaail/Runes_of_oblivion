@@ -1,0 +1,135 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #111;
+    font-family: 'Courier New', Courier, monospace;
+    user-select: none;
+    color: white;
+}
+
+/* Слой поверх Canvas для UI */
+#ui-layer {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; /* Чтобы клики проходили сквозь пустые места на Canvas */
+}
+
+/* Класс для скрытия элементов */
+.hidden {
+    display: none !important;
+}
+
+/* --- ОВЕРЛЕИ (МЕНЮ, GAME OVER) --- */
+.overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    pointer-events: auto; /* Включаем клики для меню */
+    z-index: 100;
+}
+
+h1 {
+    font-size: 4rem;
+    text-shadow: 0 0 20px #ff0000;
+    margin-bottom: 20px;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+}
+
+h2 {
+    font-size: 1.5rem;
+    margin-bottom: 40px;
+    color: #ccc;
+}
+
+/* Кнопки меню */
+.menu-btn {
+    background: #222;
+    color: white;
+    border: 2px solid #555;
+    padding: 15px 40px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+.menu-btn:hover {
+    background: #444;
+    border-color: #fff;
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+/* --- ИГРОВОЙ ИНТЕРФЕЙС (GAME UI) --- */
+
+/* Статистика в левом углу */
+#ui-stats {
+    position: absolute;
+    top: 20px; left: 20px;
+    font-size: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 10px;
+    border-radius: 5px;
+    pointer-events: none;
+    line-height: 1.5;
+}
+
+/* Контейнер для карт (Рука) */
+#hand-container {
+    position: absolute;
+    bottom: 30px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+    display: flex; 
+    gap: 15px; 
+    pointer-events: auto;
+    align-items: flex-end; /* Чтобы карты "подпрыгивали" при выборе */
+    height: 140px; /* Фиксированная высота, чтобы карты не дергали лейаут */
+}
+
+/* Стиль самой карты (генерируется в JS, но базовые свойства тут) */
+.card {
+    transition: transform 0.2s, border-color 0.2s;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+/* Кнопка END TURN */
+#end-turn-btn {
+    position: absolute;
+    right: 30px; 
+    bottom: 30px; 
+    padding: 15px 30px; 
+    font-size: 1.2rem;
+    background: #440000;
+    color: #ffcccc;
+    border: 2px solid #ff4444;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: bold;
+    pointer-events: auto;
+    transition: all 0.2s;
+}
+
+#end-turn-btn:hover:not(:disabled) {
+    background: #770000;
+    box-shadow: 0 0 15px #ff0000;
+}
+
+#end-turn-btn:disabled {
+    background: #222;
+    border-color: #444;
+    color: #666;
+    cursor: not-allowed;
+    box-shadow: none;
+}

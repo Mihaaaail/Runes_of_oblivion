@@ -1,116 +1,94 @@
 export class UIManager {
     constructor(gameManager) {
-        this.game = gameManager;
-        
-        this.handContainer = document.getElementById('hand-container');
-        this.playerHp = document.getElementById('player-hp-ui');
-        this.playerMana = document.getElementById('player-mana-ui');
-        this.enemyHp = document.getElementById('enemy-hp-ui');
-        this.endTurnBtn = document.getElementById('end-turn-btn');
+        this.gm = gameManager;
 
-        this.endTurnBtn.addEventListener('click', () => {
-            this.game.endTurn();
-        });
+        // Элементы
+        this.statsDiv = document.getElementById('ui-stats');
+        this.handContainer = document.getElementById('hand-container');
+        this.endTurnBtn = document.getElementById('end-turn-btn');
+        
+        this.gameUI = document.getElementById('game-ui');
+        this.mainMenu = document.getElementById('main-menu');
+        this.levelScreen = document.getElementById('level-screen');
+        this.gameOverScreen = document.getElementById('game-over-screen');
+
+        // Кнопки меню
+        document.getElementById('start-game-btn').onclick = () => this.gm.startNewGame();
+        document.getElementById('next-level-btn').onclick = () => this.gm.startNextLevel();
+        document.getElementById('restart-btn').onclick = () => this.gm.startNewGame();
+        
+        this.endTurnBtn.onclick = () => this.gm.endTurn();
+    }
+
+    showMenu() {
+        this.hideAll();
+        this.mainMenu.classList.remove('hidden');
+    }
+
+    showGame() {
+        this.hideAll();
+        this.gameUI.classList.remove('hidden');
+    }
+
+    showLevelComplete(floor) {
+        this.hideAll();
+        document.getElementById('level-title').innerText = `FLOOR ${floor} CLEARED`;
+        this.levelScreen.classList.remove('hidden');
+    }
+
+    showGameOver(reason) {
+        this.hideAll();
+        document.getElementById('death-reason').innerText = reason;
+        this.gameOverScreen.classList.remove('hidden');
+    }
+
+    hideAll() {
+        this.mainMenu.classList.add('hidden');
+        this.gameUI.classList.add('hidden');
+        this.levelScreen.classList.add('hidden');
+        this.gameOverScreen.classList.add('hidden');
     }
 
     updateStats(player, enemy) {
-        this.playerHp.innerText = `HP: ${player.hp}/${player.maxHp}`;
-        this.playerMana.innerText = `MP: ${player.mana}/${player.maxMana}`;
-        
-        // Если враг умер, пишем 0
-        const enemyCurrentHp = Math.max(0, enemy.hp);
-        this.enemyHp.innerText = `HP: ${enemyCurrentHp}/${enemy.maxHp}`;
+        if (!player || !enemy) return;
+        this.statsDiv.innerHTML = `
+            PLAYER HP: ${player.hp}/${player.maxHp} | MANA: ${player.mana}/${player.maxMana} <br>
+            FLOOR: ${this.gm.floor} <br>
+            ENEMY HP: ${enemy.hp}/${enemy.maxHp} (${enemy.type.toUpperCase()})
+        `;
     }
 
     renderHand(hand) {
-        this.handContainer.innerHTML = ''; 
-
+        this.handContainer.innerHTML = '';
         hand.forEach((card, index) => {
-            const el = document.createElement('div');
-            el.className = `card ${card.selected ? 'selected' : ''}`;
+            const btn = document.createElement('div');
+            btn.className = 'card';
             
-            el.innerHTML = `
-                <div class="card-cost">${card.cost}</div>
-                <div class="card-name">${card.name}</div>
-                <div class="card-desc">${card.desc}</div>
+            // Цвета для карт
+            let borderColor = '#fff';
+            if (card.type === 'attack') borderColor = '#ff4444';
+            if (card.type === 'fireball') borderColor = '#ff8800';
+            if (card.type === 'move') borderColor = '#44ff44';
+            if (card.type === 'push') borderColor = '#00ffff';
+
+            btn.style.border = card.selected ? `3px solid ${borderColor}` : '1px solid #555';
+            btn.style.background = '#222';
+            btn.style.color = '#fff';
+            btn.style.padding = '10px';
+            btn.style.minWidth = '80px';
+            btn.style.textAlign = 'center';
+            btn.style.cursor = 'pointer';
+            if (card.selected) btn.style.transform = 'translateY(-10px)';
+
+            btn.innerHTML = `
+                <div style="color:${borderColor}; font-weight:bold">${card.type.toUpperCase()}</div>
+                <div style="font-size:12px">Cost: ${card.cost}</div>
+                <div style="font-size:12px">Val: ${card.val}</div>
+                <div style="font-size:10px; color:#aaa">Rng: ${card.range}</div>
             `;
             
-            el.onclick = () => {
-                this.game.selectCard(index);
-            };
-
-            this.handContainer.appendChild(el);
-        });
-    }
-
-    showGameOver(message) {
-        const overlay = document.createElement('div');
-        overlay.style.position = 'absolute';
-        overlay.style.top = '0';
-        overlay.style.left = '0';
-        overlay.style.width = '100%';
-        overlay.style.height = '100%';
-        overlay.style.background = 'rgba(0,0,0,0.85)';
-        overlay.style.display = 'flex';
-        overlay.style.flexDirection = 'column';
-        overlay.style.justifyContent = 'center';
-        overlay.style.alignItems = 'center';
-        overlay.style.color = '#ff4444';
-        overlay.style.fontSize = '48px';
-        overlay.style.fontWeight = 'bold';
-        overlay.style.zIndex = '1000';
-        overlay.style.fontFamily = 'Verdana';
-        
-        overlay.innerHTML = `<div class="game-over-msg">${message}</div>`;
-        
-        const btn = document.createElement('button');
-        btn.innerText = "TRY AGAIN";
-        btn.style.marginTop = "30px";
-        btn.style.padding = "15px 40px";
-        btn.style.fontSize = "24px";
-        btn.style.background = "#ff4444";
-        btn.style.border = "none";
-        btn.style.color = "white";
-        btn.style.cursor = "pointer";
-        btn.style.fontWeight = "bold";
-        btn.style.borderRadius = "8px";
-        
-        btn.onclick = () => location.reload();
-        
-        overlay.appendChild(btn);
-        document.body.appendChild(overlay);
-    }
-
-    // НОВЫЙ МЕТОД: Уведомление о волне
-    showWaveNotification(waveNum) {
-        const div = document.createElement('div');
-        div.innerText = `WAVE ${waveNum}`;
-        div.style.position = 'absolute';
-        div.style.top = '40%';
-        div.style.left = '50%';
-        div.style.transform = 'translate(-50%, -50%)';
-        div.style.fontSize = '80px';
-        div.style.fontWeight = '900';
-        div.style.color = '#ffcc00';
-        div.style.textShadow = '0 0 30px rgba(255, 100, 0, 0.8)';
-        div.style.pointerEvents = 'none';
-        div.style.opacity = '0';
-        div.style.transition = 'all 0.5s ease-out';
-        div.style.fontFamily = 'Verdana, sans-serif';
-        div.style.zIndex = '500';
-        
-        document.body.appendChild(div);
-        
-        // Анимация CSS через JS
-        requestAnimationFrame(() => {
-            div.style.opacity = '1';
-            div.style.transform = 'translate(-50%, -50%) scale(1.2)';
-            
-            setTimeout(() => {
-                div.style.opacity = '0';
-                div.style.transform = 'translate(-50%, -50%) scale(1.5)';
-                setTimeout(() => div.remove(), 500);
-            }, 1500);
+            btn.onclick = () => this.gm.selectCard(index);
+            this.handContainer.appendChild(btn);
         });
     }
 }

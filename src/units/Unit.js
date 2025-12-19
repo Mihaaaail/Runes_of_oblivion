@@ -19,8 +19,12 @@ export class Unit {
         shadow.filterArea = null; 
         this.container.addChild(shadow);
         
-        // 2. Спрайт
-        const textureName = type === 'player' ? 'hero' : 'enemy';
+        // 2. Спрайт (выбор текстуры)
+        let textureName;
+        if (type === 'player') textureName = 'hero';
+        else if (type === 'ghost') textureName = 'ghost'; // <--- НОВОЕ
+        else textureName = 'enemy';
+        
         this.visual = Sprite.from(textureName);
         this.visual.width = TILE_SIZE;
         this.visual.height = TILE_SIZE;
@@ -62,7 +66,6 @@ export class Unit {
         gsap.to(this.visual.scale, { x: 1.1, y: 0.9, duration: 0.1, yoyo: true, repeat: 1 });
     }
 
-    // НОВЫЙ МЕТОД: Просто обновить текст (для хила)
     updateHpText() {
         this.hpText.text = `${this.hp}`;
     }
@@ -71,9 +74,7 @@ export class Unit {
         this.hp = Math.max(0, this.hp - amount);
         this.hpText.text = `${this.hp}`;
 
-        // Если это лечение (отрицательный урон), не делаем анимацию боли
         if (amount < 0) {
-            // Анимация хила (зеленая вспышка)
              gsap.to(this.visual, {
                 pixi: { tint: 0x00ff00 },
                 duration: 0.2,
@@ -84,7 +85,6 @@ export class Unit {
             return;
         }
 
-        // Вспышка урона (красная)
         gsap.to(this.visual, {
             pixi: { tint: 0xff0000 },
             duration: 0.1,
