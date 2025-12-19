@@ -2,8 +2,9 @@ import { Container, Graphics } from 'pixi.js';
 import { TILE_SIZE, GRID_W, GRID_H } from '../main';
 
 export class GridManager {
-    constructor(app) {
+    constructor(app, onTileClick) {
         this.app = app;
+        this.onTileClick = onTileClick; // Callback функция при клике
         this.container = new Container();
         this.tiles = [];
 
@@ -22,34 +23,32 @@ export class GridManager {
     }
 
     createTile(x, y) {
-        // Создаем графический объект (прямоугольник)
         const g = new Graphics();
         
         // Рисуем квадрат
-        g.rect(0, 0, TILE_SIZE - 2, TILE_SIZE - 2); // -2 пикселя для красивого зазора
-        g.fill(0x3e3e3e); // Темно-серый цвет тайла
-        g.stroke({ width: 1, color: 0x555555 }); // Обводка
+        g.rect(0, 0, TILE_SIZE - 2, TILE_SIZE - 2);
+        g.fill(0x3e3e3e);
+        g.stroke({ width: 1, color: 0x555555 });
 
         // Позиционируем
         g.x = x * TILE_SIZE;
         g.y = y * TILE_SIZE;
 
-        // Делаем интерактивным
+        // Интерактивность
         g.interactive = true;
         g.cursor = 'pointer';
 
-        // Наведение мыши (Hover эффект)
-        g.on('pointerover', () => {
-            g.tint = 0x888888; // Светлее при наведении
-        });
-        g.on('pointerout', () => {
-            g.tint = 0xffffff; // Возврат цвета
-        });
+        // Hover эффекты
+        g.on('pointerover', () => { g.tint = 0x888888; });
+        g.on('pointerout', () => { g.tint = 0xffffff; });
         
-        return {
-            x, y,
-            visual: g,
-            occupied: false
-        };
+        // Обработка клика
+        g.on('pointerdown', () => {
+            if (this.onTileClick) {
+                this.onTileClick(x, y);
+            }
+        });
+
+        return { x, y, visual: g, occupied: false };
     }
 }
