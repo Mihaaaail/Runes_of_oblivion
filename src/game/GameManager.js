@@ -1,6 +1,7 @@
 import { GridManager } from '../grid/GridManager';
 import { Unit } from '../units/Unit';
 import { UIManager } from '../ui/UIManager';
+import { DeckManager } from './DeckManager'; // <--- Импорт
 import { TILE_SIZE, GRID_W, GRID_H } from '../main';
 import gsap from 'gsap';
 
@@ -8,10 +9,8 @@ export class GameManager {
     constructor(app) {
         this.app = app;
         
-        // 1. Создаем сетку
         this.gridManager = new GridManager(app, (x, y) => this.handleTileClick(x, y));
         
-        // 2. Создаем юнитов (Координаты для 6x8)
         this.player = new Unit('player', 2, 6, 0x00ff00, 20);
         this.player.mana = 3; 
         this.player.maxMana = 3;
@@ -22,16 +21,11 @@ export class GameManager {
         this.gridManager.container.addChild(this.player.container);
         this.gridManager.container.addChild(this.enemy.container);
 
-        // 3. UI и Рука
         this.ui = new UIManager(this);
         
-        // Начальная колода
-        this.hand = [
-            { name: "Fireball", type: "attack", cost: 1, val: 5, range: 3, desc: "Deal 5 dmg (Range 3)", selected: false },
-            { name: "Heal", type: "heal", cost: 1, val: 5, range: 0, desc: "Heal 5 HP", selected: false },
-            { name: "Dash", type: "move", cost: 0, val: 3, range: 3, desc: "Move to tile (Range 3)", selected: false },
-            { name: "Smite", type: "attack", cost: 2, val: 10, range: 2, desc: "Deal 10 dmg (Range 2)", selected: false }
-        ];
+        // ПОДКЛЮЧАЕМ КОЛОДУ
+        this.deckManager = new DeckManager();
+        this.deckManager.drawHand(4); // Берем 4 карты на старте
 
         this.selectedCardIndex = -1;
         this.isPlayerTurn = true;
@@ -43,9 +37,9 @@ export class GameManager {
 
     updateUI() {
         this.ui.updateStats(this.player, this.enemy);
-        this.ui.renderHand(this.hand);
+        // Рендерим руку из DeckManager
+        this.ui.renderHand(this.deckManager.hand);
         
-        // Проверка победы
         if (this.enemy.hp <= 0) {
             this.ui.showGameOver("VICTORY!");
             this.isPlayerTurn = false;
@@ -69,51 +63,44 @@ export class GameManager {
     selectCard(index) {
         if (!this.isPlayerTurn) return;
 
-        // Если кликнули на уже выбранную карту — отмена
+        // ВАЖНО: Работаем с this.deckManager.hand
+        const hand = this.deckManager.hand;
+
         if (this.selectedCardIndex === index) {
-            this.hand[index].selected = false;
+            hand[index].selected = false;
             this.selectedCardIndex = -1;
-            this.gridManager.resetHighlights(); // Сброс подсветки
+            this.gridManager.resetHighlights();
         } else {
-            // Сброс всех
-            this.hand.forEach(c => c.selected = false);
-            // Выбор новой
-            this.hand[index].selected = true;
+            hand.forEach(c => c.selected = false);
+            hand[index].selected = true;
             this.selectedCardIndex = index;
-            
-            // ПОДСВЕТКА ЗОНЫ
-            this.highlightCardRange(this.hand[index]);
+            this.highlightCardRange(hand[index]);
         }
         this.updateUI();
     }
 
     highlightCardRange(card) {
+        // ... (этот метод без изменений, просто копируем старый)
         const tilesToHighlight = [];
         const range = card.range !== undefined ? card.range : 1;
 
-        // Если это Heal — подсвечиваем только игрока
         if (card.type === 'heal') {
-            this.gridManager.highlightTiles([{x: this.player.gridX, y: this.player.gridY}], 0x4444ff); // Синий
+            this.gridManager.highlightTiles([{x: this.player.gridX, y: this.player.gridY}], 0x4444ff);
             return;
         }
 
-        // Перебор всех клеток сетки
         for (let y = 0; y < GRID_H; y++) {
             for (let x = 0; x < GRID_W; x++) {
                 const dist = Math.abs(this.player.gridX - x) + Math.abs(this.player.gridY - y);
-                
-                // Если клетка в радиусе (и не мы сами)
                 if (dist <= range && dist > 0) {
                     tilesToHighlight.push({x, y});
                 }
             }
         }
-
-        // Цвет подсветки
+        
         let color = 0xffffff;
-        if (card.type === 'attack') color = 0xff4444; // Красный
-        if (card.type === 'move') color = 0x44ff44;   // Зеленый
-
+        if (card.type === 'attack') color = 0xff4444; 
+        if (card.type === 'move') color = 0x44ff44;  
         this.gridManager.highlightTiles(tilesToHighlight, color);
     }
 
@@ -124,26 +111,22 @@ export class GameManager {
         const isEnemyThere = (x === this.enemy.gridX && y === this.enemy.gridY);
         const isPlayerThere = (x === this.player.gridX && y === this.player.gridY);
 
-        // А. ИСПОЛЬЗОВАНИЕ КАРТЫ
         if (this.selectedCardIndex !== -1) {
-            const card = this.hand[this.selectedCardIndex];
+            const hand = this.deckManager.hand;
+            const card = hand[this.selectedCardIndex];
             const range = card.range !== undefined ? card.range : 1;
             
-            // 1. Проверка маны
             if (this.player.mana < card.cost) {
                 console.log("Not enough mana!");
                 return;
             }
 
-            // 2. Применение
             let success = false;
 
             if (card.type === "attack" && isEnemyThere) {
                 if (dist <= range) {
                     this.enemy.takeDamage(card.val);
                     success = true;
-                } else {
-                    console.log("Too far!");
                 }
             } 
             else if (card.type === "heal" && isPlayerThere) {
@@ -157,10 +140,12 @@ export class GameManager {
                 }
             }
 
-            // 3. Успех
             if (success) {
                 this.player.mana -= card.cost;
-                this.hand.splice(this.selectedCardIndex, 1);
+                
+                // ВАЖНО: Сбрасываем карту через менеджер
+                this.deckManager.discardCard(this.selectedCardIndex);
+                
                 this.selectedCardIndex = -1;
                 this.gridManager.resetHighlights();
                 this.updateUI();
@@ -168,7 +153,7 @@ export class GameManager {
             return;
         }
 
-        // Б. ОБЫЧНОЕ ДЕЙСТВИЕ
+        // Обычное движение
         if (dist === 1 && !isEnemyThere) {
             this.player.moveTo(x, y);
             this.gridManager.resetHighlights();
@@ -185,8 +170,9 @@ export class GameManager {
         
         this.isPlayerTurn = false;
         this.selectedCardIndex = -1;
-        this.hand.forEach(c => c.selected = false);
-        this.gridManager.resetHighlights(); // Сброс
+        // Снимаем выделение
+        this.deckManager.hand.forEach(c => c.selected = false);
+        this.gridManager.resetHighlights();
         this.updateUI();
 
         setTimeout(() => this.enemyTurn(), 1000);
@@ -195,15 +181,14 @@ export class GameManager {
     enemyTurn() {
         if (this.enemy.hp <= 0) return;
 
+        // ... (AI тот же, копируем)
         const dist = Math.abs(this.enemy.gridX - this.player.gridX) + Math.abs(this.enemy.gridY - this.player.gridY);
 
         if (dist === 1) {
             this.player.takeDamage(6);
-            console.log("Enemy attacks!");
         } else {
             let newX = this.enemy.gridX;
             let newY = this.enemy.gridY;
-
             if (this.player.gridX > this.enemy.gridX) newX++;
             else if (this.player.gridX < this.enemy.gridX) newX--;
             else if (this.player.gridY > this.enemy.gridY) newY++;
@@ -224,8 +209,13 @@ export class GameManager {
 
             this.isPlayerTurn = true;
             this.player.mana = this.player.maxMana;
-            if (this.hand.length < 5) {
-                this.hand.push({ name: "Strike", type: "attack", cost: 1, val: 6, range: 1, desc: "Deal 6 dmg", selected: false });
+            
+            // ВАЖНО: Новая логика дрова
+            // Например: Сбрасываем руку? Или добираем?
+            // Давай пока просто добирать до 5 карт
+            const cardsToDraw = 5 - this.deckManager.hand.length;
+            if (cardsToDraw > 0) {
+                this.deckManager.drawHand(cardsToDraw);
             }
             
             this.updateUI();
@@ -236,9 +226,7 @@ export class GameManager {
         const container = this.gridManager.container;
         const width = GRID_W * TILE_SIZE;
         const height = GRID_H * TILE_SIZE;
-        
         container.x = (this.app.screen.width - width) / 2;
-        // Сдвигаем вверх на 50px
         container.y = (this.app.screen.height - height) / 2 - 50;
     }
 }
