@@ -12,30 +12,29 @@ export class Unit {
 
         this.container = new Container();
 
-        // 1. Тень под персонажем (чтобы он не "летал")
+        // 1. Тень
         const shadow = new Graphics();
         shadow.ellipse(TILE_SIZE/2, TILE_SIZE - 5, 20, 8);
         shadow.fill({ color: 0x000000, alpha: 0.5 });
-        shadow.filterArea = null; // Оптимизация
+        shadow.filterArea = null; 
         this.container.addChild(shadow);
         
-        // 2. Спрайт персонажа
+        // 2. Спрайт
         const textureName = type === 'player' ? 'hero' : 'enemy';
         this.visual = Sprite.from(textureName);
         this.visual.width = TILE_SIZE;
         this.visual.height = TILE_SIZE;
         this.container.addChild(this.visual);
 
-        // 3. Текст HP (стильный)
+        // 3. Текст HP
         const style = new TextStyle({
             fontSize: 14,
             fill: '#ffffff',
-            stroke: { color: '#000000', width: 4 }, // Жирная обводка
+            stroke: { color: '#000000', width: 4 },
             fontWeight: '900',
             fontFamily: 'Verdana'
         });
         
-        // Цвет ХП бара зависит от типа
         const hpColor = type === 'player' ? '#44ff44' : '#ff4444';
         
         this.hpText = new Text({ text: `${this.hp}`, style });
@@ -53,7 +52,6 @@ export class Unit {
         this.gridX = gridX;
         this.gridY = gridY;
         
-        // Эффект прыжка
         gsap.to(this.container, {
             x: gridX * TILE_SIZE,
             y: gridY * TILE_SIZE,
@@ -61,25 +59,40 @@ export class Unit {
             ease: "back.out(1.2)"
         });
         
-        // Сжатие при приземлении (Squash & Stretch)
         gsap.to(this.visual.scale, { x: 1.1, y: 0.9, duration: 0.1, yoyo: true, repeat: 1 });
+    }
+
+    // НОВЫЙ МЕТОД: Просто обновить текст (для хила)
+    updateHpText() {
+        this.hpText.text = `${this.hp}`;
     }
 
     takeDamage(amount) {
         this.hp = Math.max(0, this.hp - amount);
         this.hpText.text = `${this.hp}`;
 
-        // Вспышка урона
-        const originalTint = 0xffffff;
+        // Если это лечение (отрицательный урон), не делаем анимацию боли
+        if (amount < 0) {
+            // Анимация хила (зеленая вспышка)
+             gsap.to(this.visual, {
+                pixi: { tint: 0x00ff00 },
+                duration: 0.2,
+                yoyo: true,
+                repeat: 1,
+                onComplete: () => { this.visual.tint = 0xffffff; }
+            });
+            return;
+        }
+
+        // Вспышка урона (красная)
         gsap.to(this.visual, {
             pixi: { tint: 0xff0000 },
             duration: 0.1,
             yoyo: true,
             repeat: 3,
-            onComplete: () => { this.visual.tint = originalTint; }
+            onComplete: () => { this.visual.tint = 0xffffff; }
         });
 
-        // Отлетающий текст урона (VFX)
         this.showDamageNumber(amount);
 
         if (this.hp <= 0) {
@@ -88,7 +101,6 @@ export class Unit {
     }
 
     showDamageNumber(amount) {
-        // Создаем временный текст
         const dmgText = new Text({
             text: `-${amount}`,
             style: { fontSize: 24, fill: '#ff0000', stroke: { width: 3, color: 'black' }, fontWeight: 'bold' }

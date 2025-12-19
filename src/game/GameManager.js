@@ -17,6 +17,7 @@ export class GameManager {
         this.player.mana = 3; 
         this.player.maxMana = 3;
 
+        // Первый враг
         this.enemy = new Unit('enemy', 3, 1, 0xff0000, 30);
         this.enemy.mana = 0;
         
@@ -28,30 +29,51 @@ export class GameManager {
         
         // 4. Колода
         this.deckManager = new DeckManager();
-        this.deckManager.drawHand(5); // Стартовая рука - 5 карт
+        this.deckManager.drawHand(5); 
 
         this.selectedCardIndex = -1;
         this.isPlayerTurn = true;
+        this.wave = 1;
 
         this.updateUI();
         this.centerGrid();
         window.addEventListener('resize', () => this.centerGrid());
     }
 
+    startNextWave() {
+        this.wave++;
+        console.log(`Starting Wave ${this.wave}`);
+        
+        // Враг становится жирнее
+        const newHp = 30 + (this.wave - 1) * 10;
+        
+        this.enemy = new Unit('enemy', 3, 1, 0xff0000, newHp);
+        this.enemy.maxHp = newHp; // Надо бы добавить это поле в Unit, но пока так
+        
+        this.gridManager.container.addChild(this.enemy.container);
+        
+        // Лечим игрока
+        this.player.hp = Math.min(this.player.hp + 10, this.player.maxHp);
+        if(this.player.updateHpText) this.player.updateHpText(); // Проверка на всякий
+
+        this.ui.showWaveNotification(this.wave);
+        this.updateUI();
+        this.isPlayerTurn = true;
+    }
+
     updateUI() {
         this.ui.updateStats(this.player, this.enemy);
-        // Берем руку из менеджера колоды
         this.ui.renderHand(this.deckManager.hand);
         
+        // ЕСЛИ ВРАГ УМЕР -> НОВАЯ ВОЛНА
         if (this.enemy.hp <= 0) {
-            this.ui.showGameOver("VICTORY!");
-            this.isPlayerTurn = false;
-            this.ui.endTurnBtn.disabled = true;
-            this.gridManager.resetHighlights();
+            this.gridManager.container.removeChild(this.enemy.container);
+            this.startNextWave();
             return;
         } 
-        else if (this.player.hp <= 0) {
-            this.ui.showGameOver("DEFEAT...");
+        
+        if (this.player.hp <= 0) {
+            this.ui.showGameOver(`DEFEAT (Wave ${this.wave})`);
             this.isPlayerTurn = false;
             this.ui.endTurnBtn.disabled = true;
             this.gridManager.resetHighlights();
@@ -65,9 +87,7 @@ export class GameManager {
 
     selectCard(index) {
         if (!this.isPlayerTurn) return;
-
         const hand = this.deckManager.hand;
-
         if (this.selectedCardIndex === index) {
             hand[index].selected = false;
             this.selectedCardIndex = -1;
@@ -112,14 +132,12 @@ export class GameManager {
         const isEnemyThere = (x === this.enemy.gridX && y === this.enemy.gridY);
         const isPlayerThere = (x === this.player.gridX && y === this.player.gridY);
 
-        // А. КАРТА
         if (this.selectedCardIndex !== -1) {
             const hand = this.deckManager.hand;
             const card = hand[this.selectedCardIndex];
             const range = card.range !== undefined ? card.range : 1;
             
             if (this.player.mana < card.cost) {
-                console.log("Not enough mana!");
                 return;
             }
 
@@ -144,9 +162,7 @@ export class GameManager {
 
             if (success) {
                 this.player.mana -= card.cost;
-                // Сбрасываем карту в дискард
                 this.deckManager.discardCard(this.selectedCardIndex);
-                
                 this.selectedCardIndex = -1;
                 this.gridManager.resetHighlights();
                 this.updateUI();
@@ -154,7 +170,6 @@ export class GameManager {
             return;
         }
 
-        // Б. ОБЫЧНОЕ ДЕЙСТВИЕ
         if (dist === 1 && !isEnemyThere) {
             this.player.moveTo(x, y);
             this.gridManager.resetHighlights();
@@ -168,20 +183,17 @@ export class GameManager {
 
     endTurn() {
         if (!this.isPlayerTurn) return;
-        
         this.isPlayerTurn = false;
         this.selectedCardIndex = -1;
         this.deckManager.hand.forEach(c => c.selected = false);
         this.gridManager.resetHighlights();
         this.updateUI();
-
         setTimeout(() => this.enemyTurn(), 1000);
     }
 
     enemyTurn() {
         if (this.enemy.hp <= 0) return;
 
-        // Простой AI
         const dist = Math.abs(this.enemy.gridX - this.player.gridX) + Math.abs(this.enemy.gridY - this.player.gridY);
 
         if (dist === 1) {
@@ -206,14 +218,10 @@ export class GameManager {
                 this.updateUI();
                 return;
             }
-
             this.isPlayerTurn = true;
             this.player.mana = this.player.maxMana;
-            
-            // СБРОС И НОВАЯ РУКА
             this.deckManager.discardHand();
             this.deckManager.drawHand(5);
-            
             this.updateUI();
         }, 800);
     }
