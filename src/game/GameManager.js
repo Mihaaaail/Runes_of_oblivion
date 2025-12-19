@@ -11,13 +11,12 @@ export class GameManager {
         // 1. Создаем сетку
         this.gridManager = new GridManager(app, (x, y) => this.handleTileClick(x, y));
         
-        // 2. Создаем юнитов (Центрируем для сетки 5x9)
-        // Игрок внизу (y=7), Враг вверху (y=1)
-        this.player = new Unit('player', 2, 7, 0x00ff00, 20);
+        // 2. Создаем юнитов (Координаты для 6x8)
+        this.player = new Unit('player', 2, 6, 0x00ff00, 20);
         this.player.mana = 3; 
         this.player.maxMana = 3;
 
-        this.enemy = new Unit('enemy', 2, 1, 0xff0000, 30);
+        this.enemy = new Unit('enemy', 3, 1, 0xff0000, 30);
         this.enemy.mana = 0;
         
         this.gridManager.container.addChild(this.player.container);
@@ -237,7 +236,9 @@ export class GameManager {
         const container = this.gridManager.container;
         const width = GRID_W * TILE_SIZE;
         const height = GRID_H * TILE_SIZE;
+        
         container.x = (this.app.screen.width - width) / 2;
-        container.y = (this.app.screen.height - height) / 2;
+        // Сдвигаем вверх на 50px
+        container.y = (this.app.screen.height - height) / 2 - 50;
     }
 }

@@ -39,11 +39,12 @@
 
       .bottom-panel {
         display: flex;
-        align-items: flex-end;
+        align-items: flex-end; /* Карты прижаты к низу */
         justify-content: center;
         gap: 30px;
         pointer-events: auto;
-        padding-bottom: 20px;
+        padding-bottom: 10px; /* Уменьшили отступ */
+        height: 200px;
       }
 
       /* Панель Игрока */
@@ -55,6 +56,7 @@
         border-radius: 10px;
         min-width: 120px;
         backdrop-filter: blur(5px);
+        align-self: flex-end;
       }
 
       /* КОНТЕЙНЕР КАРТ */
@@ -66,8 +68,8 @@
 
       /* КАРТА */
       .card {
-        width: 110px;
-        height: 160px;
+        width: 100px; /* Было 110 */
+        height: 140px; /* Было 160 */
         background: rgba(30, 30, 40, 0.85);
         border: 1px solid #555;
         border-radius: 12px;
@@ -90,7 +92,7 @@
       }
 
       .card:hover {
-        transform: translateY(-25px) scale(1.05);
+        transform: translateY(-40px) scale(1.1); /* Сильнее всплывают */
         box-shadow: 0 0 25px rgba(0, 212, 255, 0.4);
         border-color: #00d4ff;
         background: rgba(40, 40, 60, 0.95);
@@ -121,7 +123,7 @@
       .card-name {
         margin-top: 20px;
         font-weight: bold;
-        font-size: 13px;
+        font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 1px;
         color: #ddd;
@@ -133,7 +135,7 @@
 
       .card-desc {
         margin-top: 10px;
-        font-size: 11px;
+        font-size: 10px;
         color: #aaa;
         text-align: center;
         line-height: 1.4;
@@ -154,7 +156,7 @@
         box-shadow: 0 4px 15px rgba(255, 0, 0, 0.2);
         transition: all 0.2s;
         height: 60px;
-        align-self: center;
+        align-self: flex-end;
       }
       #end-turn-btn:hover:not(:disabled) { 
           background: linear-gradient(135deg, #a00000 0%, #600000 100%);
@@ -171,6 +173,15 @@
           box-shadow: none;
       }
       
+      .game-over-msg {
+          text-shadow: 0 0 20px currentColor;
+          animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.05); opacity: 0.8; }
+          100% { transform: scale(1); opacity: 1; }
+      }
     </style>
   </head>
   <body>

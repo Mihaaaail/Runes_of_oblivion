@@ -9,8 +9,8 @@ gsap.registerPlugin(PixiPlugin);
 PixiPlugin.registerPIXI(PIXI);
 
 export const TILE_SIZE = 64;
-export const GRID_W = 5; // Было 4, стало 5 (шире)
-export const GRID_H = 9; // Было 8, стало 9 (выше)
+export const GRID_W = 6; // Широкое поле
+export const GRID_H = 8; // Высота
 
 (async () => {
     const app = new Application();

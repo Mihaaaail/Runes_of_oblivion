@@ -1,7 +1,6 @@
-// Векторная графика (SVG) - выглядит четко и "дорого"
-// Стиль: Dark Fantasy Neon
+// Векторная графика (SVG)
 
-// 1. ГЕРОЙ: Шлем с голубым свечением
+// 1. ГЕРОЙ
 const heroSvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
   <defs>
@@ -16,7 +15,7 @@ const heroSvg = `
   <circle cx="32" cy="25" r="4" fill="#00d4ff" filter="url(#glow)"/>
 </svg>`;
 
-// 2. ВРАГ: Череп с красными глазами
+// 2. ВРАГ
 const enemySvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
   <defs>
@@ -32,16 +31,15 @@ const enemySvg = `
   <path d="M26 48 L32 44 L38 48" stroke="#ff0000" stroke-width="2" fill="none"/>
 </svg>`;
 
-// 3. ПОЛ: Темная плитка с рунами
+// 3. ПОЛ (Темно-Зеленый / Изумрудный)
 const floorSvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <rect width="64" height="64" fill="#111111"/>
-  <rect x="2" y="2" width="60" height="60" fill="#1a1a1a" stroke="#333" stroke-width="1"/>
-  <path d="M10 10 L20 20 M54 54 L44 44" stroke="#222" stroke-width="2"/>
-  <circle cx="32" cy="32" r="2" fill="#222"/>
+  <rect width="64" height="64" fill="#0b1e11"/>
+  <rect x="2" y="2" width="60" height="60" fill="#0f2b1d" stroke="#1b4f32" stroke-width="2"/>
+  <path d="M10 10 L20 20 M54 54 L44 44" stroke="#236b42" stroke-width="2" opacity="0.4"/>
+  <circle cx="32" cy="32" r="1.5" fill="#236b42" opacity="0.6"/>
 </svg>`;
 
-// Конвертируем в формат, понятный браузеру
 export const HERO_IMG = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(heroSvg);
 export const ENEMY_IMG = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(enemySvg);
 export const FLOOR_IMG = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(floorSvg);
