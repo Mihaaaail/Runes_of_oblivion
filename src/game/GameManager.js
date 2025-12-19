@@ -1,7 +1,7 @@
 import { GridManager } from '../grid/GridManager';
 import { Unit } from '../units/Unit';
 import { UIManager } from '../ui/UIManager';
-import { DeckManager } from './DeckManager'; // <--- Импорт
+import { DeckManager } from './DeckManager';
 import { TILE_SIZE, GRID_W, GRID_H } from '../main';
 import gsap from 'gsap';
 
@@ -9,8 +9,10 @@ export class GameManager {
     constructor(app) {
         this.app = app;
         
+        // 1. Сетка
         this.gridManager = new GridManager(app, (x, y) => this.handleTileClick(x, y));
         
+        // 2. Юниты
         this.player = new Unit('player', 2, 6, 0x00ff00, 20);
         this.player.mana = 3; 
         this.player.maxMana = 3;
@@ -21,11 +23,12 @@ export class GameManager {
         this.gridManager.container.addChild(this.player.container);
         this.gridManager.container.addChild(this.enemy.container);
 
+        // 3. UI
         this.ui = new UIManager(this);
         
-        // ПОДКЛЮЧАЕМ КОЛОДУ
+        // 4. Колода
         this.deckManager = new DeckManager();
-        this.deckManager.drawHand(4); // Берем 4 карты на старте
+        this.deckManager.drawHand(5); // Стартовая рука - 5 карт
 
         this.selectedCardIndex = -1;
         this.isPlayerTurn = true;
@@ -37,7 +40,7 @@ export class GameManager {
 
     updateUI() {
         this.ui.updateStats(this.player, this.enemy);
-        // Рендерим руку из DeckManager
+        // Берем руку из менеджера колоды
         this.ui.renderHand(this.deckManager.hand);
         
         if (this.enemy.hp <= 0) {
@@ -63,7 +66,6 @@ export class GameManager {
     selectCard(index) {
         if (!this.isPlayerTurn) return;
 
-        // ВАЖНО: Работаем с this.deckManager.hand
         const hand = this.deckManager.hand;
 
         if (this.selectedCardIndex === index) {
@@ -80,7 +82,6 @@ export class GameManager {
     }
 
     highlightCardRange(card) {
-        // ... (этот метод без изменений, просто копируем старый)
         const tilesToHighlight = [];
         const range = card.range !== undefined ? card.range : 1;
 
@@ -111,6 +112,7 @@ export class GameManager {
         const isEnemyThere = (x === this.enemy.gridX && y === this.enemy.gridY);
         const isPlayerThere = (x === this.player.gridX && y === this.player.gridY);
 
+        // А. КАРТА
         if (this.selectedCardIndex !== -1) {
             const hand = this.deckManager.hand;
             const card = hand[this.selectedCardIndex];
@@ -142,8 +144,7 @@ export class GameManager {
 
             if (success) {
                 this.player.mana -= card.cost;
-                
-                // ВАЖНО: Сбрасываем карту через менеджер
+                // Сбрасываем карту в дискард
                 this.deckManager.discardCard(this.selectedCardIndex);
                 
                 this.selectedCardIndex = -1;
@@ -153,7 +154,7 @@ export class GameManager {
             return;
         }
 
-        // Обычное движение
+        // Б. ОБЫЧНОЕ ДЕЙСТВИЕ
         if (dist === 1 && !isEnemyThere) {
             this.player.moveTo(x, y);
             this.gridManager.resetHighlights();
@@ -170,7 +171,6 @@ export class GameManager {
         
         this.isPlayerTurn = false;
         this.selectedCardIndex = -1;
-        // Снимаем выделение
         this.deckManager.hand.forEach(c => c.selected = false);
         this.gridManager.resetHighlights();
         this.updateUI();
@@ -181,7 +181,7 @@ export class GameManager {
     enemyTurn() {
         if (this.enemy.hp <= 0) return;
 
-        // ... (AI тот же, копируем)
+        // Простой AI
         const dist = Math.abs(this.enemy.gridX - this.player.gridX) + Math.abs(this.enemy.gridY - this.player.gridY);
 
         if (dist === 1) {
@@ -210,13 +210,9 @@ export class GameManager {
             this.isPlayerTurn = true;
             this.player.mana = this.player.maxMana;
             
-            // ВАЖНО: Новая логика дрова
-            // Например: Сбрасываем руку? Или добираем?
-            // Давай пока просто добирать до 5 карт
-            const cardsToDraw = 5 - this.deckManager.hand.length;
-            if (cardsToDraw > 0) {
-                this.deckManager.drawHand(cardsToDraw);
-            }
+            // СБРОС И НОВАЯ РУКА
+            this.deckManager.discardHand();
+            this.deckManager.drawHand(5);
             
             this.updateUI();
         }, 800);
