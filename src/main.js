@@ -11,8 +11,8 @@ gsap.registerPlugin(PixiPlugin);
 PixiPlugin.registerPIXI(PIXI);
 
 export const TILE_SIZE = 64;
-export const GRID_W = 6;
-export const GRID_H = 8;
+export const GRID_W = 14;
+export const GRID_H = 6;
 
 (async () => {
   const app = new Application();

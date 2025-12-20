@@ -2,7 +2,7 @@ export class UIManager {
   constructor(gameManager) {
     this.gm = gameManager;
 
-    // Твой HUD
+    // HUD
     this.playerHpEl = document.getElementById('player-hp-ui');
     this.playerManaEl = document.getElementById('player-mana-ui');
     this.enemyHpEl = document.getElementById('enemy-hp-ui');
@@ -57,10 +57,43 @@ export class UIManager {
   }
 
   showWaveNotification(wave) {
-    // необязательно, но чтобы не ломалось если вызываешь
+    const el = document.createElement('div');
+    el.style.position = 'fixed';
+    el.style.left = '50%';
+    el.style.top = '12%';
+    el.style.transform = 'translateX(-50%)';
+    el.style.padding = '10px 16px';
+    el.style.borderRadius = '10px';
+    el.style.background = 'rgba(0,0,0,0.65)';
+    el.style.border = '1px solid rgba(255,255,255,0.15)';
+    el.style.color = '#fff';
+    el.style.fontFamily = 'Verdana, sans-serif';
+    el.style.letterSpacing = '2px';
+    el.style.textTransform = 'uppercase';
+    el.style.zIndex = '9999';
+    el.innerText = `Wave ${wave}`;
+
+    document.body.appendChild(el);
+
+    setTimeout(() => {
+      el.style.transition = 'opacity 250ms ease';
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 260);
+    }, 800);
+  }
+
+  showWaveCleared(wave) {
+    const next = confirm(`WAVE ${wave} CLEARED.\nNext wave?`);
+    if (next) {
+      this.gm.startNextWave();
+      this.gm.beginPlayerTurn();
+    } else {
+      this.showGameOver(`VICTORY (Wave ${wave})`);
+    }
   }
 
   showGameOver(reason) {
-    alert(reason);
+    const restart = confirm(`${reason}\n\nRestart?`);
+    if (restart) location.reload();
   }
 }

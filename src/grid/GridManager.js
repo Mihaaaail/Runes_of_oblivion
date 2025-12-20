@@ -52,7 +52,7 @@ export class GridManager {
     return { x, y, visual: sprite, defaultTint };
   }
 
-  // --- Obstacles API ---
+  // -------- Obstacles --------
 
   isObstacleAt(x, y) {
     return this.obstacles.find(o => o.x === x && o.y === y) || null;
@@ -70,8 +70,8 @@ export class GridManager {
     if (this.isObstacleAt(x, y)) return;
 
     const alias = (type === 'shrine') ? 'shrine' : 'rock';
-
     const sprite = Sprite.from(alias);
+
     sprite.width = TILE_SIZE;
     sprite.height = TILE_SIZE;
     sprite.x = x * TILE_SIZE;
@@ -98,41 +98,37 @@ export class GridManager {
     this.obstacles = [];
   }
 
-  // --- Reachability (BFS) ---
+  // -------- BFS reachability (для move/dash) --------
 
   getReachableTiles(startX, startY, maxSteps) {
     const key = (x, y) => `${x},${y}`;
     const dist = new Map();
-
     const q = [];
+
     dist.set(key(startX, startY), 0);
     q.push({ x: startX, y: startY });
 
-    while (q.length > 0) {
+    while (q.length) {
       const cur = q.shift();
       const d = dist.get(key(cur.x, cur.y));
-
       if (d >= maxSteps) continue;
 
-      const neighbors = [
+      const ns = [
         { x: cur.x + 1, y: cur.y },
         { x: cur.x - 1, y: cur.y },
         { x: cur.x, y: cur.y + 1 },
-        { x: cur.x, y: cur.y - 1 }
+        { x: cur.x, y: cur.y - 1 },
       ];
 
-      for (const n of neighbors) {
+      for (const n of ns) {
         if (!this.isWalkable(n.x, n.y)) continue;
-
         const k = key(n.x, n.y);
         if (dist.has(k)) continue;
-
         dist.set(k, d + 1);
         q.push(n);
       }
     }
 
-    // всё кроме стартовой клетки
     const out = [];
     for (const k of dist.keys()) {
       if (k === key(startX, startY)) continue;
@@ -148,7 +144,7 @@ export class GridManager {
     return reachable.some(p => p.x === targetX && p.y === targetY);
   }
 
-  // --- Highlight API ---
+  // -------- Highlight --------
 
   highlightTiles(tilesToHighlight, color) {
     this.resetHighlights();
