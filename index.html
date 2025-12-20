@@ -25,7 +25,7 @@
         box-sizing: border-box;
       }
 
-      /* Панель Врага */
+      /* ПАНЕЛЬ ВРАГА */
       .top-panel {
         align-self: center;
         background: rgba(40, 0, 0, 0.6);
@@ -35,23 +35,25 @@
         border-radius: 0 0 15px 15px;
         backdrop-filter: blur(5px);
         transform: perspective(500px) rotateX(10deg);
+        pointer-events: auto;
       }
 
-      /* НИЖНЯЯ ПАНЕЛЬ (ИСПРАВЛЕННАЯ) */
+      /* НИЖНЯЯ ПАНЕЛЬ */
       .bottom-panel {
         display: flex;
-        align-items: flex-end; /* Выравнивание по низу */
-        justify-content: center; /* Центрируем всё содержимое */
-        gap: 20px;
-        pointer-events: auto;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 30px;
+        pointer-events: auto; /* Чтобы кликать на карты */
         padding-bottom: 20px;
         width: 100%;
-        max-width: 1200px; /* Ограничиваем ширину, чтобы кнопки не улетали */
-        margin: 0 auto;    /* Центрируем саму панель */
+        max-width: 1200px;
+        margin: 0 auto;
         position: relative;
+        /* УБРАЛИ overflow: hidden, чтобы карты могли торчать */
       }
 
-      /* Панель Игрока */
+      /* ПАНЕЛЬ ИГРОКА */
       .player-stats {
         background: rgba(0, 40, 0, 0.6);
         border: 2px solid #44ff44;
@@ -61,23 +63,23 @@
         min-width: 120px;
         backdrop-filter: blur(5px);
         flex-shrink: 0;
-        margin-bottom: 10px; /* Чуть поднимем от самого низа */
+        margin-bottom: 0;
       }
 
-      /* КОНТЕЙНЕР КАРТ (ИСПРАВЛЕННЫЙ) */
+      /* КОНТЕЙНЕР КАРТ */
       #hand-container {
         display: flex;
         gap: 15px;
         perspective: 1000px;
-        flex: 1; /* Занимает всё доступное место между статами и кнопкой */
+        flex: 1; /* Занимает место между статами и кнопкой */
         justify-content: center;
-        align-items: flex-end;
+        align-items: flex-end; /* Карты стоят на "земле" */
         
-        /* ВАЖНО: Даем место сверху для "прыжка" карты */
-        padding-top: 60px; 
-        margin-top: -60px; /* Компенсируем отступ, чтобы не сдвигать вёрстку */
+        /* ВАЖНО: Отступ сверху, чтобы было куда всплывать */
+        padding-top: 50px; 
+        margin-top: -50px;
         
-        overflow: visible; /* Разрешаем вылетать за границы */
+        min-height: 160px;
       }
 
       /* КАРТА */
@@ -95,7 +97,7 @@
         transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         position: relative;
         flex-shrink: 0;
-        z-index: 1; /* Базовый слой */
+        z-index: 10;
       }
 
       .card::before {
@@ -106,13 +108,12 @@
         opacity: 0.5;
       }
 
-      /* ЭФФЕКТ ПРИ НАВЕДЕНИИ (HOVER) */
       .card:hover {
         transform: translateY(-40px) scale(1.1);
         box-shadow: 0 0 25px rgba(0, 212, 255, 0.4);
         border-color: #00d4ff;
         background: rgba(40, 40, 60, 0.95);
-        z-index: 100; /* Поверх всего */
+        z-index: 100; /* Перекрывает всё */
       }
       
       .card.selected {
@@ -134,7 +135,7 @@
         display: flex; align-items: center; justify-content: center;
         font-weight: bold; font-size: 16px;
         box-shadow: 0 2px 5px rgba(0,0,0,0.8);
-        z-index: 101; /* Поверх карты */
+        z-index: 101;
       }
 
       .card-name {
@@ -175,9 +176,8 @@
         height: 60px;
         min-width: 120px;
         flex-shrink: 0;
-        align-self: flex-end; /* Прижимаем к низу */
+        align-self: flex-end;
         pointer-events: auto;
-        margin-bottom: 10px;
       }
 
       #end-turn-btn:hover:not(:disabled) { 
@@ -190,7 +190,7 @@
       #end-turn-btn:active:not(:disabled) { 
         transform: scale(0.95); 
       }
-
+      
       #end-turn-btn:disabled {
         background: #333;
         border-color: #555;
@@ -202,20 +202,25 @@
   </head>
   <body>
     <div id="ui-layer">
+      <!-- ПАНЕЛЬ ВРАГА -->
       <div class="top-panel">
         <div style="font-size: 10px; color: #ff8888; letter-spacing: 2px;">ENEMY</div>
         <div id="enemy-hp-ui" style="font-size: 24px; font-weight: bold; text-shadow: 0 0 10px red;">HP: 30</div>
       </div>
 
+      <!-- НИЖНЯЯ ПАНЕЛЬ -->
       <div class="bottom-panel">
+        <!-- СТАТЫ ИГРОКА -->
         <div class="player-stats">
-          <div style="font-size: 10px; color: #88ff88; letter-spacing: 2px;">PLAYER</div>
-          <div id="player-hp-ui" style="font-size: 18px; font-weight: bold;">HP: 20</div>
-          <div id="player-mana-ui" style="color: #00d4ff; font-weight: bold; margin-top: 5px;">MP: 3/3</div>
+            <div style="font-size: 10px; color: #88ff88; letter-spacing: 2px;">PLAYER</div>
+            <div id="player-hp-ui" style="font-size: 18px; font-weight: bold;">HP: 20</div>
+            <div id="player-mana-ui" style="color: #00d4ff; font-weight: bold; margin-top: 5px;">MP: 3/3</div>
         </div>
 
+        <!-- КАРТЫ (СЮДА JS ДОБАВИТ .card) -->
         <div id="hand-container"></div>
 
+        <!-- КНОПКА -->
         <button id="end-turn-btn">End Turn</button>
       </div>
     </div>
