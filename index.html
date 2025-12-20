@@ -1,42 +1,224 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Runes of Oblivion</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+    <style>
+      body { 
+        margin: 0; 
+        overflow: hidden; 
+        background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%); 
+        font-family: 'Verdana', sans-serif; 
+        color: white;
+      }
+      
+      #ui-layer {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+
+      /* Панель Врага */
+      .top-panel {
+        align-self: center;
+        background: rgba(40, 0, 0, 0.6);
+        border: 2px solid #ff4444;
+        box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
+        padding: 10px 30px;
+        border-radius: 0 0 15px 15px;
+        backdrop-filter: blur(5px);
+        transform: perspective(500px) rotateX(10deg);
+      }
+
+      /* НИЖНЯЯ ПАНЕЛЬ (ИСПРАВЛЕННАЯ) */
+      .bottom-panel {
+        display: flex;
+        align-items: flex-end; /* Выравнивание по низу */
+        justify-content: center; /* Центрируем всё содержимое */
+        gap: 20px;
+        pointer-events: auto;
+        padding-bottom: 20px;
+        width: 100%;
+        max-width: 1200px; /* Ограничиваем ширину, чтобы кнопки не улетали */
+        margin: 0 auto;    /* Центрируем саму панель */
+        position: relative;
+      }
+
+      /* Панель Игрока */
+      .player-stats {
+        background: rgba(0, 40, 0, 0.6);
+        border: 2px solid #44ff44;
+        box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+        padding: 15px;
+        border-radius: 10px;
+        min-width: 120px;
+        backdrop-filter: blur(5px);
+        flex-shrink: 0;
+        margin-bottom: 10px; /* Чуть поднимем от самого низа */
+      }
+
+      /* КОНТЕЙНЕР КАРТ (ИСПРАВЛЕННЫЙ) */
+      #hand-container {
+        display: flex;
+        gap: 15px;
+        perspective: 1000px;
+        flex: 1; /* Занимает всё доступное место между статами и кнопкой */
+        justify-content: center;
+        align-items: flex-end;
+        
+        /* ВАЖНО: Даем место сверху для "прыжка" карты */
+        padding-top: 60px; 
+        margin-top: -60px; /* Компенсируем отступ, чтобы не сдвигать вёрстку */
+        
+        overflow: visible; /* Разрешаем вылетать за границы */
+      }
+
+      /* КАРТА */
+      .card {
+        width: 100px;
+        height: 140px;
+        background: rgba(30, 30, 40, 0.85);
+        border: 1px solid #555;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 10px;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        position: relative;
+        flex-shrink: 0;
+        z-index: 1; /* Базовый слой */
+      }
+
+      .card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 5px;
+        background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+        opacity: 0.5;
+      }
+
+      /* ЭФФЕКТ ПРИ НАВЕДЕНИИ (HOVER) */
+      .card:hover {
+        transform: translateY(-40px) scale(1.1);
+        box-shadow: 0 0 25px rgba(0, 212, 255, 0.4);
+        border-color: #00d4ff;
+        background: rgba(40, 40, 60, 0.95);
+        z-index: 100; /* Поверх всего */
+      }
+      
+      .card.selected {
+        border-color: #ffd700;
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+        transform: translateY(-35px) scale(1.1);
+        background: rgba(50, 50, 20, 0.9);
+        z-index: 90;
+      }
+
+      .card-cost {
+        position: absolute;
+        top: -5px; left: -5px;
+        background: #222;
+        border: 2px solid #00d4ff;
+        color: #00d4ff;
+        width: 28px; height: 28px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: bold; font-size: 16px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.8);
+        z-index: 101; /* Поверх карты */
+      }
+
+      .card-name {
+        margin-top: 20px;
+        font-weight: bold;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #ddd;
+        border-bottom: 1px solid rgba(255,255,255,0.2);
+        width: 100%;
+        text-align: center;
+        padding-bottom: 5px;
+      }
+
+      .card-desc {
+        margin-top: 10px;
+        font-size: 10px;
+        color: #aaa;
+        text-align: center;
+        line-height: 1.4;
+      }
+
+      /* КНОПКА END TURN */
+      #end-turn-btn {
+        padding: 15px 25px;
+        background: linear-gradient(135deg, #800000 0%, #400000 100%);
+        color: #ffaaaa;
+        border: 1px solid #ff4444;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+        font-size: 14px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        box-shadow: 0 4px 15px rgba(255, 0, 0, 0.2);
+        transition: all 0.2s;
+        height: 60px;
+        min-width: 120px;
+        flex-shrink: 0;
+        align-self: flex-end; /* Прижимаем к низу */
+        pointer-events: auto;
+        margin-bottom: 10px;
+      }
+
+      #end-turn-btn:hover:not(:disabled) { 
+        background: linear-gradient(135deg, #a00000 0%, #600000 100%);
+        box-shadow: 0 0 20px rgba(255, 68, 68, 0.6);
+        color: white;
+        transform: scale(1.05);
+      }
+
+      #end-turn-btn:active:not(:disabled) { 
+        transform: scale(0.95); 
+      }
+
+      #end-turn-btn:disabled {
+        background: #333;
+        border-color: #555;
+        color: #777;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+    </style>
+  </head>
+  <body>
     <div id="ui-layer">
-        <!-- Игровой интерфейс (скрыт в меню) -->
-        <div id="game-ui" class="hidden">
-            <div id="ui-stats"></div>
-            <div id="hand-container"></div>
-            <button id="end-turn-btn">END TURN</button>
+      <div class="top-panel">
+        <div style="font-size: 10px; color: #ff8888; letter-spacing: 2px;">ENEMY</div>
+        <div id="enemy-hp-ui" style="font-size: 24px; font-weight: bold; text-shadow: 0 0 10px red;">HP: 30</div>
+      </div>
+
+      <div class="bottom-panel">
+        <div class="player-stats">
+          <div style="font-size: 10px; color: #88ff88; letter-spacing: 2px;">PLAYER</div>
+          <div id="player-hp-ui" style="font-size: 18px; font-weight: bold;">HP: 20</div>
+          <div id="player-mana-ui" style="color: #00d4ff; font-weight: bold; margin-top: 5px;">MP: 3/3</div>
         </div>
 
-        <!-- Главное Меню -->
-        <div id="main-menu" class="overlay">
-            <!-- ИСПРАВЛЕННОЕ НАЗВАНИЕ -->
-            <h1 style="color: #aa00ff; text-shadow: 0 0 20px #5500aa;">RUNES OF OBLIVION</h1>
-            <button id="start-game-btn" class="menu-btn">ENTER THE ABYSS</button>
-        </div>
+        <div id="hand-container"></div>
 
-        <!-- Экран прохождения уровня -->
-        <div id="level-screen" class="overlay hidden">
-            <h1 id="level-title" style="color: #44ff44; font-size: 3rem;">FLOOR CLEARED</h1>
-            <h2 id="level-desc">Prepare for the next battle...</h2>
-            <button id="next-level-btn" class="menu-btn">DESCEND DEEPER</button>
-        </div>
-
-        <!-- Экран Смерти -->
-        <div id="game-over-screen" class="overlay hidden">
-            <h1 style="color: #ff0000;">OBLIVION AWAITS</h1>
-            <h2 id="death-reason">Slain by a Skeleton</h2>
-            <button id="restart-btn" class="menu-btn">TRY AGAIN</button>
-        </div>
+        <button id="end-turn-btn">End Turn</button>
+      </div>
     </div>
-
     <script type="module" src="/src/main.js"></script>
-</body>
+  </body>
 </html>
