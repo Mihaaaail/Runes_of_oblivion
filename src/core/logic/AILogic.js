@@ -1,94 +1,158 @@
 import { GameState } from '../state/GameState.js';
 import { PathFinding } from './PathFinding.js';
 import { BattleLogic } from './BattleLogic.js';
-import { UNIT_TYPES, EVENTS } from '../../data/constants.js';
+import { UNIT_TYPES, EVENTS, UNIT_STATS } from '../../data/constants.js';
 
 export class AILogic {
-    
-    static async executeTurn() {
-        const state = GameState.getInstance();
-        const enemies = state.getEnemies();
-        const player = state.getPlayer();
+  static async executeTurn() {
+    const state = GameState.getInstance();
+    const enemies = state.getEnemies();
+    const player = state.getPlayer();
+    if (!player || player.isDead) return;
 
-        if (!player || player.isDead) return;
+    // 1) Ходят враги
+    for (const enemy of enemies) {
+      await new Promise((r) => setTimeout(r, 500));
+      if (enemy.isDead) continue;
 
-        for (const enemy of enemies) {
-            await new Promise(r => setTimeout(r, 500));
-            if (enemy.isDead) continue;
-            
-            await this.processEnemyAction(enemy, player);
-            
-            if (player.isDead) break;
-        }
-
-        // Эмитим событие конца хода, даже если врагов нет (на всякий случай)
-        state.emit(EVENTS.TURN_END, { team: 1 });
+      await this.processEnemyAction(enemy, player);
+      if (player.isDead) break;
     }
 
-    static async processEnemyAction(enemy, player) {
-        // --- ЛОГИКА АТАКИ ---
-        // Проверяем, может ли враг атаковать из текущей позиции
-        const canAttack = this.canEnemyAttack(enemy, player);
+    // 2) Стреляют турели игрока
+    this.processTurrets();
 
-        if (canAttack) {
-            // Если да - атакуем и завершаем ход этого юнита
-            console.log(`${enemy.type} attacks player!`);
-            let damage = (enemy.type === UNIT_TYPES.ENEMY_RANGED) ? 4 : 6;
-            BattleLogic.dealDamage(enemy, player, damage);
-            return;
-        }
+    state.emit(EVENTS.TURN_END, { team: 1 });
+  }
 
-        // --- ЛОГИКА ДВИЖЕНИЯ (если атаковать не можем) ---
-        
-        // Для лучника: если близко - убегаем
-        if (enemy.type === UNIT_TYPES.ENEMY_RANGED && Math.abs(enemy.x - player.x) <= 1 && Math.abs(enemy.y - player.y) <= 1) {
-            const moves = PathFinding.getReachableTiles(enemy.x, enemy.y, 2); // 2 - очки хода на побег
-            moves.sort((a, b) => {
-                const distA = Math.abs(a.x - player.x) + Math.abs(a.y - player.y);
-                const distB = Math.abs(b.x - player.x) + Math.abs(b.y - player.y);
-                return distB - distA; // Сортируем по убыванию дистанции (самая дальняя клетка)
-            });
-            if (moves.length > 0) {
-                console.log(`${enemy.type} is running away.`);
-                BattleLogic.moveUnit(enemy, moves[0].x, moves[0].y);
-            }
-            return;
-        }
-        
-        // Для всех остальных: идем к игроку
-        const path = PathFinding.findPath(enemy.x, enemy.y, player.x, player.y);
-        
-        if (path && path.length > 1) {
-            // movePoints врага (допустим 3)
-            const movePoints = 3; 
-            
-            // Индекс шага, до которого можем дойти.
-            // path.length-2, чтобы не встать на игрока.
-            // movePoints-1, т.к. индексы с 0.
-            const targetIndex = Math.min(path.length - 2, movePoints - 1);
+  static async processEnemyAction(enemy, player) {
+    const state = GameState.getInstance();
 
-            if (targetIndex >= 0) { // Идти можно даже на 1 шаг
-                const step = path[targetIndex];
-                if (step) {
-                    console.log(`${enemy.type} moves to ${step.x},${step.y}`);
-                    BattleLogic.moveUnit(enemy, step.x, step.y);
-                }
-            }
-        }
+    const stats =
+      enemy.type === UNIT_TYPES.ENEMY_RANGED
+        ? UNIT_STATS.ENEMY_RANGED
+        : UNIT_STATS.ENEMY_MELEE;
+
+    // --- 1. Попробовать ударить игрока ---
+    if (this.canEnemyAttackTarget(enemy, player, stats)) {
+      console.log(`${enemy.type} attacks player!`);
+      BattleLogic.dealDamage(enemy, player, stats.DAMAGE);
+      return;
     }
 
-    // Хелпер, чтобы определить, может ли враг атаковать
-    static canEnemyAttack(enemy, player) {
-        const dx = Math.abs(enemy.x - player.x);
-        const dy = Math.abs(enemy.y - player.y);
+    // --- 2. Попробовать ударить ближайшую турель ---
+    const turrets = state.units.filter(
+      (u) => u.type === UNIT_TYPES.SUMMON_TURRET && !u.isDead
+    );
 
-        if (enemy.type === UNIT_TYPES.ENEMY_RANGED) {
-            // Лучник бьет на расстоянии от 2 до 4 (манхэттен)
-            const manhattanDist = dx + dy;
-            return manhattanDist > 1 && manhattanDist <= 4;
-        } else { // Милишник
-            // Бьет вплотную (по 8 направлениям)
-            return dx <= 1 && dy <= 1;
-        }
+    let turretTarget = null;
+    let bestDist = Infinity;
+
+    for (const t of turrets) {
+      const dx = Math.abs(enemy.x - t.x);
+      const dy = Math.abs(enemy.y - t.y);
+      if (!this.canEnemyAttackRaw(enemy, dx, dy, stats)) continue;
+
+      const dist = dx + dy;
+      if (dist < bestDist) {
+        bestDist = dist;
+        turretTarget = t;
+      }
     }
+
+    if (turretTarget) {
+      console.log(`${enemy.type} attacks turret!`);
+      BattleLogic.dealDamage(enemy, turretTarget, stats.DAMAGE);
+      return;
+    }
+
+    // --- 3. Если никого ударить нельзя — двигаться / убегать ---
+
+    // Лучник отбегает, если слишком близко к игроку
+    if (
+      enemy.type === UNIT_TYPES.ENEMY_RANGED &&
+      Math.abs(enemy.x - player.x) <= stats.FLEE_RANGE &&
+      Math.abs(enemy.y - player.y) <= stats.FLEE_RANGE
+    ) {
+      const moves = PathFinding.getReachableTiles(
+        enemy.x,
+        enemy.y,
+        Math.max(1, stats.MOVE_POINTS - 1)
+      );
+
+      moves.sort((a, b) => {
+        const distA = Math.abs(a.x - player.x) + Math.abs(a.y - player.y);
+        const distB = Math.abs(b.x - player.x) + Math.abs(b.y - player.y);
+        return distB - distA;
+      });
+
+      if (moves.length > 0) {
+        console.log(`${enemy.type} is running away.`);
+        BattleLogic.moveUnit(enemy, moves[0].x, moves[0].y);
+        return;
+      }
+    }
+
+    // Движение к игроку
+    const path = PathFinding.findPath(enemy.x, enemy.y, player.x, player.y);
+    if (!path || path.length < 2) return;
+
+    const maxIndex = Math.min(stats.MOVE_POINTS, path.length - 2);
+    if (maxIndex < 1) return;
+
+    const step = path[maxIndex];
+    if (!step) return;
+
+    console.log(`${enemy.type} moves to ${step.x},${step.y}`);
+    BattleLogic.moveUnit(enemy, step.x, step.y);
+  }
+
+  // Проверка атаки по произвольной цели (игрок или турель)
+  static canEnemyAttackTarget(enemy, target, stats) {
+    const dx = Math.abs(enemy.x - target.x);
+    const dy = Math.abs(enemy.y - target.y);
+    return this.canEnemyAttackRaw(enemy, dx, dy, stats);
+  }
+
+  // Общая логика досягаемости по dx/dy
+  static canEnemyAttackRaw(enemy, dx, dy, stats) {
+    if (enemy.type === UNIT_TYPES.ENEMY_RANGED) {
+      const dist = dx + dy;
+      return dist >= stats.RANGE_MIN && dist <= stats.RANGE_MAX;
+    }
+    // милишник
+    return dx <= 1 && dy <= 1;
+  }
+
+  // --- Логика турелей игрока ---
+  static processTurrets() {
+    const state = GameState.getInstance();
+    const turrets = state.units.filter(
+      (u) => u.type === UNIT_TYPES.SUMMON_TURRET && !u.isDead
+    );
+    const enemies = state.getEnemies();
+    if (turrets.length === 0 || enemies.length === 0) return;
+
+    const { RANGE, DAMAGE } = UNIT_STATS.TURRET;
+
+    for (const turret of turrets) {
+      let best = null;
+      let bestDist = Infinity;
+
+      for (const enemy of enemies) {
+        if (enemy.isDead) continue;
+        const dist =
+          Math.abs(enemy.x - turret.x) + Math.abs(enemy.y - turret.y);
+        if (dist <= RANGE && dist < bestDist) {
+          bestDist = dist;
+          best = enemy;
+        }
+      }
+
+      if (!best) continue;
+
+      console.log(`Turret at ${turret.x},${turret.y} shoots ${best.id}`);
+      BattleLogic.dealDamage(turret, best, DAMAGE);
+    }
+  }
 }

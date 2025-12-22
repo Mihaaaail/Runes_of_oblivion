@@ -1,26 +1,34 @@
+import { UNIT_STATS, UNIT_TYPES } from '../../data/constants.js';
+
 export class UnitModel {
     constructor(data) {
         this.id = data.id;
-        this.type = data.type; // 'player', 'skeleton', 'turret'
-        this.team = data.team; // 0 = Player, 1 = Enemy
-        
-        // Позиция
+        this.type = data.type;
+        this.team = data.team;
+
         this.x = data.x;
         this.y = data.y;
 
-        // Статы
         this.maxHp = data.hp;
         this.hp = data.hp;
-        this.maxMana = data.maxMana || 3;
-        this.mana = data.mana || 3;
-        this.movePoints = 3; // Очки движения за ход
 
-        // Состояния
+        const baseStats = UNIT_STATS.PLAYER; // дефолт, ниже поправим
+
+        if (this.type === UNIT_TYPES.ENEMY_MELEE) {
+        this.movePoints = UNIT_STATS.ENEMY_MELEE.MOVE_POINTS;
+        } else if (this.type === UNIT_TYPES.ENEMY_RANGED) {
+        this.movePoints = UNIT_STATS.ENEMY_RANGED.MOVE_POINTS;
+        } else {
+        // игрок и прочие
+        this.movePoints = UNIT_STATS.PLAYER.MOVE_POINTS;
+        }
+
+        this.maxMana = data.maxMana ?? UNIT_STATS.PLAYER.MAX_MANA;
+        this.mana = data.mana ?? this.maxMana;
+
         this.isDead = false;
-        this.shield = 0; // Временное HP
-        this.buffs = []; // [{ type: 'freeze', duration: 2 }]
-        
-        // Для ИИ
+        this.shield = 0;
+        this.buffs = [];
         this.intent = null;
     }
 

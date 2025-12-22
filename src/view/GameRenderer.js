@@ -5,66 +5,73 @@ import { GameState } from '../core/state/GameState.js';
 import { EVENTS } from '../data/constants.js';
 
 export class GameRenderer {
-    constructor(gameManager) {
-        this.app = new Application();
-        this.gameManager = gameManager;
-    }
+  constructor(gameManager) {
+    this.app = new Application();
+    this.gameManager = gameManager;
+  }
 
-    async init() {
-        await this.app.init({ 
-            background: '#101015', 
-            resizeTo: window,
-            antialias: true 
-        });
-        document.body.appendChild(this.app.canvas);
+  async init() {
+    await this.app.init({
+      background: '#14100d',
+      resizeTo: window,
+      antialias: true,
+    });
 
-        this.gridRenderer = new GridRenderer(this.app, (x, y) => this.onTileClick(x, y));
-        this.unitRenderer = new UnitRenderer(this.app);
-        
-        this.unitRenderer.container.x = this.gridRenderer.container.x;
-        this.unitRenderer.container.y = this.gridRenderer.container.y;
+    document.body.appendChild(this.app.canvas);
 
-        window.addEventListener('resize', () => {
-            this.gridRenderer.centerGrid();
-            // Синхронизация после ресайза
-            this.unitRenderer.container.x = this.gridRenderer.container.x;
-            this.unitRenderer.container.y = this.gridRenderer.container.y;
-        });
+    this.gridRenderer = new GridRenderer(this.app, (x, y) =>
+      this.onTileClick(x, y)
+    );
+    this.unitRenderer = new UnitRenderer(this.app);
 
-        this.bindEvents();
-    }
+    this.unitRenderer.container.x = this.gridRenderer.container.x;
+    this.unitRenderer.container.y = this.gridRenderer.container.y;
 
-    bindEvents() {
-        const state = GameState.getInstance();
+    window.addEventListener('resize', () => {
+      this.gridRenderer.centerGrid();
+      this.unitRenderer.container.x = this.gridRenderer.container.x;
+      this.unitRenderer.container.y = this.gridRenderer.container.y;
+    });
 
-        // Юниты - ПРАВИЛЬНАЯ ДЕСТРУКТУРИЗАЦИЯ
-        state.on(EVENTS.UNIT_SPAWNED, (data) => {
-            console.log('UNIT_SPAWNED event received:', data);
-            if (data && data.unit) {
-                this.unitRenderer.createUnitVisual(data.unit);
-            }
-        });
-        
-        state.on(EVENTS.UNIT_MOVED, (data) => {
-            if (data && data.unit) {
-                this.unitRenderer.moveUnit(data.unit, data.x, data.y);
-            }
-        });
-        
-        state.on(EVENTS.UNIT_DAMAGED, (data) => {
-            if (data && data.target) {
-                this.unitRenderer.damageUnit(data.target);
-            }
-        });
-        
-        state.on(EVENTS.UNIT_DIED, (data) => {
-            if (data && data.unit) {
-                this.unitRenderer.removeUnit(data.unit);
-            }
-        });
-    }
+    this.bindEvents();
+  }
 
-    onTileClick(x, y) {
-        this.gameManager.handleTileClick(x, y);
-    }
+  bindEvents() {
+    const state = GameState.getInstance();
+
+    state.on(EVENTS.UNIT_SPAWNED, (data) => {
+      if (data && data.unit) {
+        this.unitRenderer.createUnitVisual(data.unit);
+      }
+    });
+
+    state.on(EVENTS.UNIT_MOVED, (data) => {
+      if (data && data.unit) {
+        this.unitRenderer.moveUnit(data.unit, data.x, data.y);
+      }
+    });
+
+    state.on(EVENTS.UNIT_DAMAGED, (data) => {
+      if (data && data.target) {
+        this.unitRenderer.damageUnit(data.target);
+      }
+    });
+
+    // Новая подписка: лечение
+    state.on(EVENTS.UNIT_HEALED, (data) => {
+      if (data && data.target) {
+        this.unitRenderer.healUnit(data.target);
+      }
+    });
+
+    state.on(EVENTS.UNIT_DIED, (data) => {
+      if (data && data.unit) {
+        this.unitRenderer.removeUnit(data.unit);
+      }
+    });
+  }
+
+  onTileClick(x, y) {
+    this.gameManager.handleTileClick(x, y);
+  }
 }
