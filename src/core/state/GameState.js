@@ -9,6 +9,8 @@ export class GameState extends EventEmitter {
         
         this.grid = new GridModel();
         this.units = []; // Массив UnitModel
+        this.deck = [];     // массив ключей карт (например: 'STRIKE')
+        this.discard = [];  // массив ключей карт
         this.hand = [];  // Массив карт игрока
         
         this.wave = 1;
