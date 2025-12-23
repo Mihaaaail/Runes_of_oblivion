@@ -103,19 +103,15 @@ export class GridRenderer {
     frame.lineTo(bottomLeft.x - offset, bottomLeft.y + TILE_HEIGHT / 2);
     frame.closePath();
 
-    frame.lineStyle({ width: 2, color: 0x120e0a, alpha: 0.8 });
     frame.zIndex = -1500;
-
     this.container.addChild(frame);
   }
 
   highlight(tiles, color = 0x8b7355) {
     this.clearHighlight();
-
     tiles.forEach((pos) => {
       const tile = this.tiles.find((t) => t.x === pos.x && t.y === pos.y);
       if (!tile) return;
-
       tile.graphic.tint = color;
       tile.graphic.isHighlighted = true;
       this.highlightedTiles.push(tile);

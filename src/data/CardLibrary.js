@@ -61,7 +61,6 @@ export const CardLibrary = {
     description: 'Draw 2, discard 1',
   },
 
-  // ★★★ НОВЫЕ КАРТЫ ★★★
   SHIELD: {
     id: 'shield',
     name: 'Shield',
@@ -72,26 +71,14 @@ export const CardLibrary = {
     description: 'Gain 8 shield',
   },
 
-  // Теперь это реально AoE-эффект
-  CLEAV: {
-    id: 'cleave',
-    name: 'Cleave',
-    cost: 2,
-    value: 6,
-    range: 2, // дистанция к цели
-    effect: CARD_EFFECTS.CLEAV,
-    description: 'Deal 6 to target and nearby enemies',
-  },
-
-  // Теперь это реально яд
   POISON: {
     id: 'poison',
     name: 'Poison Dart',
     cost: 1,
-    value: 3, // мгновенный урон
+    value: 3,
     range: 3,
     effect: CARD_EFFECTS.POISON,
-    description: 'Deal 3 + 2 poison/turn x3 (ticks on enemy turns)',
+    description: 'Deal 3 + 2 poison/turn x3',
   },
 
   BASH: {
@@ -105,7 +92,7 @@ export const CardLibrary = {
   },
 };
 
-// ★★★ СТАРТОВАЯ КОЛОДА ★★★
+// стартовая колода (без CLEAV)
 export const STARTING_DECK = [
   'STRIKE', 'STRIKE', 'STRIKE', 'STRIKE',
   'FIREBALL', 'FIREBALL',
@@ -114,7 +101,6 @@ export const STARTING_DECK = [
   'TURRET',
   'LOOT', 'LOOT',
   'SHIELD',
-  'CLEAV',
   'POISON',
   'BASH',
 ];

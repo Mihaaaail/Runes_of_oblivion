@@ -1,40 +1,28 @@
 import { GameState } from '../state/GameState.js';
 import { BattleLogic } from './BattleLogic.js';
+import { PathFinding } from './PathFinding.js';
 import { CARD_EFFECTS, UNIT_TYPES, TEAMS, EVENTS } from '../../data/constants.js';
 import { UnitModel } from '../state/UnitModel.js';
 
-function chebDist(ax, ay, bx, by) {
-  return Math.max(Math.abs(ax - bx), Math.abs(ay - by));
-}
-
 export class CardEffects {
+  // Проверка: можно ли сыграть карту в эту клетку (x, y)
   static canPlay(card, targetX, targetY) {
     const state = GameState.getInstance();
     const player = state.getPlayer();
     if (!player) return false;
 
-    // Range по диагоналям (Chebyshev)
-    const dist = chebDist(player.x, player.y, targetX, targetY);
+    const dist = Math.abs(player.x - targetX) + Math.abs(player.y - targetY);
     if (dist > (card.range ?? 0)) return false;
 
     switch (card.effect) {
-      case CARD_EFFECTS.DAMAGE: {
-        const target = state.getUnitAt(targetX, targetY);
-        return target && target.team === TEAMS.ENEMY;
-      }
-
+      case CARD_EFFECTS.DAMAGE:
       case CARD_EFFECTS.POISON: {
         const target = state.getUnitAt(targetX, targetY);
         return target && target.team === TEAMS.ENEMY;
       }
 
-      case CARD_EFFECTS.CLEAV: {
-        // Клив целится в клетку с врагом
-        const target = state.getUnitAt(targetX, targetY);
-        return target && target.team === TEAMS.ENEMY;
-      }
-
       case CARD_EFFECTS.HEAL:
+        // HEAL всегда по себе: можно играть, если у игрока есть хоть 1 потерянное HP
         return player.hp < player.maxHp;
 
       case CARD_EFFECTS.DASH:
@@ -42,13 +30,14 @@ export class CardEffects {
         return state.isWalkable(targetX, targetY);
 
       case CARD_EFFECTS.SHIELD:
-      case CARD_EFFECTS.LOOT:
       case CARD_EFFECTS.TERRAIN:
+      case CARD_EFFECTS.LOOT:
       default:
         return true;
     }
   }
 
+  // Выполнение эффекта
   static execute(card, targetX, targetY) {
     const state = GameState.getInstance();
     const player = state.getPlayer();
@@ -63,34 +52,8 @@ export class CardEffects {
         break;
       }
 
-      case CARD_EFFECTS.POISON: {
-        const target = state.getUnitAt(targetX, targetY);
-        if (target && target.team === TEAMS.ENEMY) {
-          // мгновенный урон
-          BattleLogic.dealDamage(player, target, card.value);
-          // DoT: 2 урона на ход врагов, 3 тика
-          BattleLogic.addPoison(target, 2, 3);
-        }
-        break;
-      }
-
-      case CARD_EFFECTS.CLEAV: {
-        // AoE вокруг цели (радиус 1 по Chebyshev)
-        const center = state.getUnitAt(targetX, targetY);
-        if (!center || center.team !== TEAMS.ENEMY) break;
-
-        const enemies = state.getEnemies();
-        for (const e of enemies) {
-          if (e.isDead) continue;
-          const d = chebDist(e.x, e.y, targetX, targetY);
-          if (d <= 1) {
-            BattleLogic.dealDamage(player, e, card.value);
-          }
-        }
-        break;
-      }
-
       case CARD_EFFECTS.HEAL: {
+        // Игнорируем targetX/Y, лечим игрока
         if (player.hp < player.maxHp) {
           BattleLogic.heal(player, card.value);
         }
@@ -124,14 +87,19 @@ export class CardEffects {
         break;
       }
 
+      case CARD_EFFECTS.POISON: {
+        const target = state.getUnitAt(targetX, targetY);
+        if (target && target.team === TEAMS.ENEMY) {
+          BattleLogic.dealDamage(player, target, card.value);
+          BattleLogic.addPoison(target, 2, 3); // 2 dmg/turn x 3 turns
+        }
+        break;
+      }
+
       case CARD_EFFECTS.TERRAIN: {
         state.grid.addTileEffect(targetX, targetY, 'fire', card.value);
         break;
       }
-
-      case CARD_EFFECTS.LOOT:
-        // обрабатывается в GameManager (спец-кейс)
-        break;
 
       default:
         console.warn(`Unknown card effect: ${card.effect}`);

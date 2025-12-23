@@ -60,7 +60,8 @@ export class UIManager {
     this.hpEl.innerText = `HP: ${player.hp}/${player.maxHp ?? 0}`;
 
     const moveMax = UNIT_STATS.PLAYER.MOVE_POINTS ?? 3;
-    let line = `MP: ${player.mana}/${player.maxMana ?? 0} | Move: ${player.movePoints}/${moveMax}`;
+    let line = `MP: ${player.mana}/${player.maxMana ?? 0} | Move: ${player.movePoints}/${moveMax} | Gold: ${this.gm.run?.gold ?? 0}`;
+
 
     if (this.gm.isAwaitingDiscard()) {
       line += ` | Discard: ${this.gm.pendingDiscard}`;

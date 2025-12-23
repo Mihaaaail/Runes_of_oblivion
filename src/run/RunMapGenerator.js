@@ -31,11 +31,14 @@ function shuffleInPlace(rng, arr) {
 }
 
 /**
+ * ВАЖНО: по твоему требованию карта = только FIGHT и финальный BOSS.
+ * Ветвления/слияния остаются, но никаких REWARD/EVENT/SHOP больше не генерируется.
+ *
  * @param {{floors?: number, seed?: number}} params
  * @returns {{
  *  seed: number,
  *  floors: number,
- *  nodesByFloor: Array<Array<any>>,
+ *  nodesByFloor: Array<any[]>,
  *  nodes: Map<string, any>,
  *  edges: Array<[string,string]>
  * }}
@@ -50,32 +53,15 @@ export function generateRunMap({ floors = 9, seed = Date.now() } = {}) {
   const edges = []; // [fromId, toId]
   const nodes = new Map(); // id -> node
 
-  // Decide one SHOP floor in the middle (avoid 0 and last-1)
-  const shopFloor = Math.max(
-    2,
-    Math.min(normalFloors - 2, 3 + Math.floor(rng() * 3))
-  );
-
-  // --- Create nodes ---
+  // --- Create nodes (ONLY FIGHT) ---
   for (let f = 0; f < normalFloors; f++) {
-    // 2..3 nodes per floor
+    // 2..3 nodes per floor (branching)
     const count = (f === 0) ? 2 : (rng() < 0.55 ? 3 : 2);
-
     const floorNodes = [];
+
     for (let i = 0; i < count; i++) {
       const id = `${f}-${i}`;
-
-      let type = NODE_TYPES.FIGHT;
-
-      if (f === shopFloor) {
-        type = (i === 1 ? NODE_TYPES.SHOP : NODE_TYPES.FIGHT);
-      } else if (f > 0) {
-        // sprinkle events/rewards (keep fights dominant)
-        const roll = rng();
-        if (roll < 0.14) type = NODE_TYPES.EVENT;
-        else if (roll < 0.26) type = NODE_TYPES.REWARD;
-        else type = NODE_TYPES.FIGHT;
-      }
+      const type = NODE_TYPES.FIGHT;
 
       const node = { id, floor: f, index: i, type };
       nodes.set(id, node);

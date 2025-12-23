@@ -38,7 +38,6 @@ export class RunFlowController {
     this._unsubRun = null;
     this._unsubWaveCompleted = null;
     this._unsubGameOver = null;
-
     this._activeModalCleanup = null;
   }
 
@@ -72,14 +71,14 @@ export class RunFlowController {
       if (e.key === 'Enter') this.enterSelected();
     });
 
-    // Победа в энкаунтере => узел пройден, вернуться на карту
+    // победа: закрыть бой, отметить узел, вернуться на карту
     this._unsubWaveCompleted = this.gameManager.state.on(EVENTS.WAVE_COMPLETED, ({ encounter }) => {
       if (encounter?.nodeId) this.run.completeNode(encounter.nodeId);
       this.run.setInBattle(false);
       this.goToMap();
     });
 
-    // Поражение => НЕ завершаем ран, просто вернуться на карту (можно снова войти в узел)
+    // поражение: показать Result, вернуться на карту (узел НЕ завершаем)
     this._unsubGameOver = this.gameManager.state.on(EVENTS.GAME_OVER, () => {
       show(this.resultModal);
       this.run.setInBattle(false);
@@ -98,7 +97,7 @@ export class RunFlowController {
 
   startNewRun() {
     const snap = this.run.startNewRun({ seed: Date.now(), floors: 9 });
-    this.gameManager.startNewRun({ seed: snap.seed }); // важно для прогресса игрока
+    this.gameManager.startNewRun?.({ seed: snap.seed });
 
     hide(this.sceneMenu);
     show(this.sceneMap);
@@ -131,32 +130,30 @@ export class RunFlowController {
       hide(this.sceneMenu);
       hide(this.sceneMap);
       this._showHUD(true);
-
       this.gameManager.startEncounter(action.encounter);
-      return;
     }
   }
 
   _openNodeModal(node) {
     const modal = this._getModalByNodeType(node.type);
-    const that = this;
+    show(modal);
 
     this._activeModalCleanup?.();
     this._activeModalCleanup = null;
 
-    show(modal);
+    const closeBtn = this._getCloseBtnByNodeType(node.type);
 
     const handler = () => {
-      that._closeModal(modal);
+      this._closeModal(modal);
 
-      // Авто-награда/эффект узла (SHOP/REWARD/EVENT)
-      that.gameManager.applyNodeReward?.(node);
+      // авто-награда/эффект узла
+      this.gameManager.applyNodeReward?.(node);
 
-      that.run.completeNode(node.id);
-      that.run.clearSelection();
+      // отметить узел как пройденный
+      this.run.completeNode(node.id);
+      this.run.clearSelection();
     };
 
-    const closeBtn = this._getCloseBtnByNodeType(node.type);
     closeBtn?.addEventListener('click', handler);
     this._activeModalCleanup = () => closeBtn?.removeEventListener('click', handler);
   }

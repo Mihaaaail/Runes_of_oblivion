@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Runes of Oblivion Gen II</title>
+  <title>Runes of Oblivion</title>
 
   <style>
-    :root {
+    :root{
       --bg-dark: #0a0a12;
       --ui-panel: rgba(20, 20, 35, 0.88);
       --ui-panel-strong: rgba(20, 20, 35, 0.95);
@@ -14,30 +14,29 @@
       --text-main: #e0e0e0;
       --mana-color: #4488ff;
       --hp-color: #ff4444;
-
       --ok: #38d27a;
       --warn: #ffbb44;
       --danger: #ff5555;
-
       --line: rgba(255,255,255,0.14);
       --line-soft: rgba(255,255,255,0.08);
       --shadow: 0 12px 40px rgba(0,0,0,0.70);
     }
 
-    body {
+    body{
       margin: 0;
       overflow: hidden;
       background-color: var(--bg-dark);
-      font-family: Segoe UI, Tahoma, Geneva, Verdana, sans-serif;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       color: var(--text-main);
       user-select: none;
     }
 
-    canvas { display: block; }
+    canvas{ display:block; }
 
     /* ---------- Shared helpers ---------- */
-    .hidden { display: none !important; }
-    .ui-panel {
+    .hidden{ display:none !important; }
+
+    .ui-panel{
       background: var(--ui-panel);
       border: 1px solid var(--line);
       border-radius: 12px;
@@ -45,7 +44,7 @@
       box-shadow: var(--shadow);
     }
 
-    .btn {
+    .btn{
       pointer-events: auto;
       cursor: pointer;
       border: 1px solid rgba(255,255,255,0.18);
@@ -57,33 +56,36 @@
       letter-spacing: 0.4px;
       transition: transform 0.12s ease, filter 0.12s ease, background 0.12s ease;
     }
-    .btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.08); }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn:hover:not(:disabled){
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+    }
+    .btn:disabled{
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
 
-    .btn-primary {
+    .btn-primary{
       background: linear-gradient(135deg, rgba(255,215,0,0.22), rgba(0,0,0,0.18));
       border-color: rgba(255,215,0,0.28);
     }
-    .btn-danger {
-      background: linear-gradient(135deg, rgba(255,70,70,0.22), rgba(0,0,0,0.18));
-      border-color: rgba(255,80,80,0.30);
-    }
 
-    .title {
+    .title{
       font-weight: 900;
       letter-spacing: 1.2px;
       text-transform: uppercase;
       color: #fff;
       text-shadow: 0 10px 30px rgba(0,0,0,0.65);
     }
-    .subtitle {
+
+    .subtitle{
       color: rgba(255,255,255,0.72);
       font-size: 13px;
       line-height: 1.35;
     }
 
-    /* ---------- HUD / battle UI layer ---------- */
-    #ui-layer {
+    /* ---------- HUD battle UI layer ---------- */
+    #ui-layer{
       position: absolute;
       inset: 0;
       pointer-events: none;
@@ -93,7 +95,7 @@
       justify-content: space-between;
     }
 
-    .top-bar {
+    .top-bar{
       display: flex;
       justify-content: space-between;
       padding: 20px;
@@ -101,7 +103,7 @@
       gap: 16px;
     }
 
-    .player-stats {
+    .player-stats{
       background: var(--ui-panel);
       padding: 10px 20px;
       border-radius: 8px;
@@ -113,7 +115,7 @@
       backdrop-filter: blur(5px);
     }
 
-    .stat-item {
+    .stat-item{
       font-weight: bold;
       font-size: 18px;
       display: flex;
@@ -122,11 +124,11 @@
       line-height: 1;
     }
 
-    .hp-text { color: var(--hp-color); }
-    .mana-text { color: var(--mana-color); }
+    .hp-text{ color: var(--hp-color); }
+    .mana-text{ color: var(--mana-color); }
 
     /* piles */
-    .pile {
+    .pile{
       position: relative;
       cursor: pointer;
       color: #ddd;
@@ -134,7 +136,7 @@
       padding-left: 14px;
     }
 
-    .pile-label {
+    .pile-label{
       color: #bbb;
       font-weight: 800;
       font-size: 14px;
@@ -142,7 +144,7 @@
       letter-spacing: 0.6px;
     }
 
-    .pile-count {
+    .pile-count{
       color: var(--accent);
       font-weight: 900;
       font-size: 18px;
@@ -151,11 +153,13 @@
       display: inline-block;
     }
 
-    .pile .hint {
+    .pile .hint{
       margin-left: 6px;
-      width: 18px; height: 18px;
+      width: 18px;
+      height: 18px;
       display: inline-flex;
-      align-items: center; justify-content: center;
+      align-items: center;
+      justify-content: center;
       border: 1px solid rgba(255,255,255,0.25);
       border-radius: 50%;
       font-size: 12px;
@@ -164,7 +168,7 @@
     }
 
     /* hover tooltip via data-tip */
-    .pile[data-tip]:hover::after {
+    .pile[data-tip]:hover::after{
       content: attr(data-tip);
       position: absolute;
       top: calc(100% + 10px);
@@ -183,7 +187,7 @@
       white-space: normal;
     }
 
-    .pile[data-tip]:hover::before {
+    .pile[data-tip]:hover::before{
       content: "";
       position: absolute;
       top: calc(100% + 4px);
@@ -194,7 +198,7 @@
       pointer-events: none;
     }
 
-    .bottom-bar {
+    .bottom-bar{
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -203,11 +207,10 @@
       gap: 15px;
     }
 
-    #map-selected-info { white-space: pre-line; }
+    #map-selected-info{ white-space: pre-line; }
+    #run-map-active line{ pointer-events: none; }
 
-    #run-map-active line { pointer-events: none; }
-
-    #end-turn-btn {
+    #end-turn-btn{
       background: linear-gradient(135deg, #882222, #550000);
       color: white;
       border: 2px solid #aa4444;
@@ -221,18 +224,18 @@
       transition: transform 0.2s, filter 0.2s;
     }
 
-    #end-turn-btn:hover:not(:disabled) {
+    #end-turn-btn:hover:not(:disabled){
       transform: translateY(-2px);
       filter: brightness(1.15);
     }
 
-    #end-turn-btn:disabled {
+    #end-turn-btn:disabled{
       background: #333;
       border-color: #555;
       cursor: not-allowed;
     }
 
-    #hand-container {
+    #hand-container{
       display: flex;
       gap: 10px;
       justify-content: center;
@@ -242,7 +245,7 @@
       padding: 0 10px;
     }
 
-    .card {
+    .card{
       width: 110px;
       height: 150px;
       background: linear-gradient(to bottom right, #2c3e50, #000);
@@ -260,25 +263,25 @@
       font-size: 12px;
     }
 
-    .card:hover {
+    .card:hover{
       transform: translateY(-20px) scale(1.08);
       z-index: 10;
       border-color: var(--accent);
     }
 
-    .card.selected {
+    .card.selected{
       transform: translateY(-30px) scale(1.12);
       border-color: #00ff00;
       box-shadow: 0 0 20px #00ff00;
       z-index: 20;
     }
 
-    .card.discardable {
+    .card.discardable{
       border-color: var(--warn);
       box-shadow: 0 0 14px rgba(255, 180, 60, 0.25);
     }
 
-    .card-cost {
+    .card-cost{
       position: absolute;
       top: -10px;
       left: -10px;
@@ -293,7 +296,7 @@
       border: 2px solid #fff;
     }
 
-    .card-name {
+    .card-name{
       font-weight: 900;
       text-align: center;
       margin-bottom: 6px;
@@ -303,7 +306,7 @@
       letter-spacing: 0.6px;
     }
 
-    .card-desc {
+    .card-desc{
       text-align: center;
       font-size: 11px;
       color: #aaa;
@@ -312,8 +315,9 @@
     }
 
     /* ---------- Generic modal shell ---------- */
-    .modal.hidden { display: none; }
-    .modal {
+    .modal.hidden{ display:none; }
+
+    .modal{
       position: absolute;
       inset: 0;
       pointer-events: auto;
@@ -324,7 +328,7 @@
       z-index: 2000;
     }
 
-    .modal-card {
+    .modal-card{
       width: 560px;
       max-width: calc(100vw - 40px);
       max-height: 75vh;
@@ -335,7 +339,7 @@
       box-shadow: var(--shadow);
     }
 
-    .modal-head {
+    .modal-head{
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -343,7 +347,7 @@
       border-bottom: 1px solid rgba(255,255,255,0.10);
     }
 
-    .modal-title {
+    .modal-title{
       font-weight: 900;
       letter-spacing: 0.6px;
       color: #f2f2f2;
@@ -351,7 +355,7 @@
       font-size: 14px;
     }
 
-    .modal-body {
+    .modal-body{
       padding: 12px 14px;
       overflow: auto;
       max-height: calc(75vh - 60px);
@@ -359,7 +363,7 @@
       color: #ddd;
     }
 
-    .modal-close {
+    .modal-close{
       cursor: pointer;
       background: rgba(0,0,0,0.25);
       color: #fff;
@@ -370,13 +374,13 @@
     }
 
     /* pile modal body rows */
-    .pile-note {
+    .pile-note{
       font-size: 12px;
       color: #aaa;
       margin-bottom: 10px;
     }
 
-    .pile-row {
+    .pile-row{
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 12px;
@@ -384,13 +388,14 @@
       border-bottom: 1px solid rgba(255,255,255,0.06);
       align-items: baseline;
     }
-    .pile-row:last-child { border-bottom: none; }
-    .pile-name { color: #f0f0f0; font-weight: 800; }
-    .pile-desc { color: #aaa; font-size: 12px; margin-top: 2px; }
-    .pile-right { color: var(--accent); font-weight: 900; }
+    .pile-row:last-child{ border-bottom: none; }
 
-    /* ---------- Scenes: MENU and MAP ---------- */
-    .scene {
+    .pile-name{ color: #f0f0f0; font-weight: 800; }
+    .pile-desc{ color: #aaa; font-size: 12px; margin-top: 2px; }
+    .pile-right{ color: var(--accent); font-weight: 900; }
+
+    /* ---------- Scenes MENU and MAP ---------- */
+    .scene{
       position: absolute;
       inset: 0;
       pointer-events: auto;
@@ -400,7 +405,7 @@
       justify-content: center;
     }
 
-    .scene-backdrop {
+    .scene-backdrop{
       position: absolute;
       inset: 0;
       background:
@@ -411,7 +416,7 @@
       backdrop-filter: blur(2px);
     }
 
-    .scene-layout {
+    .scene-layout{
       position: relative;
       width: min(1100px, calc(100vw - 40px));
       height: min(720px, calc(100vh - 40px));
@@ -421,27 +426,27 @@
       padding: 16px;
     }
 
-    .menu-left {
+    .menu-left{
       padding: 18px;
       display: flex;
       flex-direction: column;
       gap: 14px;
     }
 
-    .menu-actions {
+    .menu-actions{
       display: flex;
       flex-direction: column;
       gap: 10px;
       margin-top: 12px;
     }
 
-    .menu-foot {
+    .menu-foot{
       margin-top: auto;
       padding-top: 12px;
       border-top: 1px solid var(--line-soft);
     }
 
-    .map-right {
+    .map-right{
       padding: 18px;
       display: flex;
       flex-direction: column;
@@ -449,14 +454,14 @@
       overflow: hidden;
     }
 
-    .map-top {
+    .map-top{
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
     }
 
-    .map-legend {
+    .map-legend{
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
@@ -465,7 +470,7 @@
       user-select: none;
     }
 
-    .legend-item {
+    .legend-item{
       display: inline-flex;
       align-items: center;
       gap: 6px;
@@ -475,14 +480,14 @@
       border-radius: 999px;
     }
 
-    .dot { width: 10px; height: 10px; border-radius: 50%; }
-    .dot-fight { background: #ff7070; }
-    .dot-reward { background: #ffd700; }
-    .dot-event { background: #8f7bff; }
-    .dot-shop { background: #44ccaa; }
-    .dot-boss { background: #ff4444; box-shadow: 0 0 12px rgba(255,68,68,0.35); }
+    .dot{ width: 10px; height: 10px; border-radius: 50%; }
+    .dot-fight{ background: #ff7070; }
+    .dot-boss{
+      background: #ff4444;
+      box-shadow: 0 0 12px rgba(255,68,68,0.35);
+    }
 
-    .map-canvas {
+    .map-canvas{
       margin-top: 8px;
       flex: 1;
       border: 1px solid rgba(255,255,255,0.12);
@@ -493,13 +498,9 @@
     }
 
     /* SVG is injected by JS later; keep a placeholder */
-    #run-map {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
+    #run-map{ width: 100%; height: 100%; display: block; }
 
-    .map-hint {
+    .map-hint{
       position: absolute;
       left: 12px;
       bottom: 12px;
@@ -511,15 +512,12 @@
       padding: 8px 10px;
       max-width: 420px;
     }
-
-    /* ---------- Scene visibility toggles ---------- */
-    /* Мы будем переключать JS-ом: добавлять/убирать hidden */
-    /* HUD тоже будем скрывать/показывать JS-ом */
   </style>
 </head>
 
 <body>
   <!-- Pixi Canvas is appended by GameRenderer -->
+
   <div id="app"></div>
 
   <!-- BATTLE HUD -->
@@ -529,21 +527,15 @@
         <div class="stat-item hp-text" id="player-hp-ui">HP: --</div>
         <div class="stat-item mana-text" id="player-mana-ui">MP: --</div>
 
-        <div
-          class="stat-item pile"
-          id="deck-ui"
-          data-tip="Draw pile: cards you will draw from. When it becomes empty, the discard pile is shuffled back into draw."
-        >
+        <div class="stat-item pile" id="deck-ui"
+             data-tip="Draw pile: cards you will draw from. When it becomes empty, the discard pile is shuffled back into draw.">
           <span class="pile-label">Draw</span>
           <span class="pile-count" id="deck-count">0</span>
           <span class="hint">?</span>
         </div>
 
-        <div
-          class="stat-item pile"
-          id="discard-ui"
-          data-tip="Discard pile: played/discarded cards go here. It will be recycled into Draw when Draw is empty."
-        >
+        <div class="stat-item pile" id="discard-ui"
+             data-tip="Discard pile: played/discarded cards go here. It will be recycled into Draw when Draw is empty.">
           <span class="pile-label">Discard</span>
           <span class="pile-count" id="discard-count">0</span>
           <span class="hint">?</span>
@@ -557,85 +549,53 @@
     </div>
   </div>
 
-  <!-- MENU SCENE (overlay) -->
+  <!-- MENU SCENE overlay -->
   <div id="scene-menu" class="scene">
     <div class="scene-backdrop"></div>
 
     <div class="scene-layout">
       <div class="ui-panel menu-left">
-        <div>
-          <div class="title" style="font-size: 28px;">Runes of Oblivion</div>
-          <div class="subtitle" style="margin-top: 6px;">
-            Выбери путь по руинам: бои, события, магазин и финальный босс.<br/>
-            Ветвящаяся карта на 8–10 этажей (1 забег).
-          </div>
+        <div class="title" style="font-size: 28px;">Runes of Oblivion</div>
+
+        <div class="subtitle" style="margin-top: 6px;">
+          Choose your way!<br />
         </div>
 
         <div class="menu-actions">
           <button class="btn btn-primary" id="menu-new-run">New Run</button>
-          <button class="btn" id="menu-continue" disabled>Continue (soon)</button>
-          <button class="btn" id="menu-settings">Settings (soon)</button>
+          <!-- УБРАНО: Continue (soon) -->
+          <!-- УБРАНО: Settings (soon) -->
         </div>
 
-        <div class="menu-foot">
-          <div class="subtitle">
-            Подсказка: Draw — откуда добираешь, Discard — куда уходят сыгранные/сброшенные.
-          </div>
-        </div>
+        
       </div>
 
+      <!-- вместо Roadmap preview: компактный чистый блок -->
       <div class="ui-panel map-right">
         <div class="map-top">
           <div>
-            <div class="title" style="font-size: 16px;">Roadmap preview</div>
-            <div class="subtitle">После “New Run” откроется интерактивная карта.</div>
+            <div class="title" style="font-size: 16px;">Roadmap</div>
+            <div class="subtitle">Click New Run</div>
           </div>
-          <button class="btn" id="menu-open-map" disabled>Open Map</button>
-        </div>
-
-        <div class="map-legend">
-          <span class="legend-item"><span class="dot dot-fight"></span>FIGHT</span>
-          <span class="legend-item"><span class="dot dot-reward"></span>REWARD</span>
-          <span class="legend-item"><span class="dot dot-event"></span>EVENT</span>
-          <span class="legend-item"><span class="dot dot-shop"></span>SHOP</span>
-          <span class="legend-item"><span class="dot dot-boss"></span>BOSS</span>
         </div>
 
         <div class="map-canvas">
-          <svg id="run-map" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet">
-            <defs>
-              <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="rgba(255,215,0,0.25)"></stop>
-                <stop offset="100%" stop-color="rgba(68,136,255,0.18)"></stop>
-              </linearGradient>
-            </defs>
-
-            <text x="500" y="300" text-anchor="middle"
-              fill="rgba(255,255,255,0.35)" font-size="18" font-weight="800">
-              Map will be rendered here
-            </text>
-          </svg>
-
-          <div class="map-hint">
-            В этой области будет ветвящаяся карта. Нажимай на доступные узлы, чтобы выбрать следующий этаж.
-          </div>
+          <div class="map-hint">Map will be shown after New Run</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- MAP SCENE (overlay) -->
+  <!-- MAP SCENE overlay -->
   <div id="scene-map" class="scene hidden">
     <div class="scene-backdrop"></div>
 
     <div class="scene-layout">
       <div class="ui-panel menu-left">
-        <div>
-          <div class="title" style="font-size: 20px;">Roadmap</div>
-          <div class="subtitle" style="margin-top: 6px;">
-            Выбирай следующий узел из доступных (подсвечены).<br/>
-            Победа в бою открывает следующий этаж.
-          </div>
+        <div class="title" style="font-size: 20px;">Roadmap</div>
+        <div class="subtitle" style="margin-top: 6px;">
+          Select the next node from the available ones (highlighted)<br />
+          Winning the battle opens the next floor
         </div>
 
         <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 8px;">
@@ -643,17 +603,8 @@
           <button class="btn btn-primary" id="map-start-selected" disabled>Enter</button>
         </div>
 
-        <div class="ui-panel" style="padding: 12px; border-radius: 12px; box-shadow: none;">
-          <div class="title" style="font-size: 14px;">Selected node</div>
-          <div class="subtitle" id="map-selected-info" style="margin-top: 8px;">
-            Нажми на узел на карте.
-          </div>
-        </div>
-
         <div class="menu-foot">
-          <div class="subtitle">
-            Узлы: FIGHT/REWARD/EVENT/SHOP, финал — BOSS.
-          </div>
+          <div class="subtitle">Nodes: FIGHT, final — BOSS.</div>
         </div>
       </div>
 
@@ -663,22 +614,15 @@
             <div class="title" style="font-size: 16px;">Run map</div>
             <div class="subtitle" id="map-run-status">Choose your path.</div>
           </div>
+
           <div class="map-legend">
             <span class="legend-item"><span class="dot dot-fight"></span>FIGHT</span>
-            <span class="legend-item"><span class="dot dot-reward"></span>REWARD</span>
-            <span class="legend-item"><span class="dot dot-event"></span>EVENT</span>
-            <span class="legend-item"><span class="dot dot-shop"></span>SHOP</span>
             <span class="legend-item"><span class="dot dot-boss"></span>BOSS</span>
           </div>
         </div>
 
         <div class="map-canvas">
-          <!-- JS later will fully render nodes/edges into this SVG -->
           <svg id="run-map-active" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet"></svg>
-
-          <div class="map-hint">
-            Подсказка: линии показывают доступные переходы. Нажми узел → потом Enter.
-          </div>
         </div>
       </div>
     </div>
@@ -695,46 +639,8 @@
     </div>
   </div>
 
-  <!-- SHOP MODAL -->
-  <div id="shop-modal" class="modal hidden">
-    <div class="modal-card" id="shop-modal-card">
-      <div class="modal-head">
-        <div class="modal-title" id="shop-modal-title">Shop</div>
-        <button id="shop-modal-close" class="modal-close">Close</button>
-      </div>
-      <div id="shop-modal-body" class="modal-body">
-        <div class="subtitle">Shop UI will be implemented next (cards / remove card / heal).</div>
-      </div>
-    </div>
-  </div>
 
-  <!-- REWARD MODAL -->
-  <div id="reward-modal" class="modal hidden">
-    <div class="modal-card" id="reward-modal-card">
-      <div class="modal-head">
-        <div class="modal-title" id="reward-modal-title">Reward</div>
-        <button id="reward-modal-close" class="modal-close">Close</button>
-      </div>
-      <div id="reward-modal-body" class="modal-body">
-        <div class="subtitle">Reward UI will be implemented next (pick 1 of 3, add to deck).</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- EVENT MODAL -->
-  <div id="event-modal" class="modal hidden">
-    <div class="modal-card" id="event-modal-card">
-      <div class="modal-head">
-        <div class="modal-title" id="event-modal-title">Event</div>
-        <button id="event-modal-close" class="modal-close">Close</button>
-      </div>
-      <div id="event-modal-body" class="modal-body">
-        <div class="subtitle">Event UI will be implemented next (choices / consequences).</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- RESULT MODAL (Victory/Defeat) -->
+  <!-- RESULT MODAL -->
   <div id="result-modal" class="modal hidden">
     <div class="modal-card" id="result-modal-card">
       <div class="modal-head">
