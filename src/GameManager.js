@@ -5,8 +5,30 @@ import { AILogic } from './core/logic/AILogic.js';
 import { PathFinding } from './core/logic/PathFinding.js';
 import { BattleLogic } from './core/logic/BattleLogic.js';
 import { UIManager } from './ui/UIManager.js';
-import { getCard, STARTING_DECK } from './data/CardLibrary.js';
+import { CardLibrary, getCard, STARTING_DECK } from './data/CardLibrary.js';
 import { EVENTS, UNIT_TYPES, TEAMS, UNIT_STATS, CARD_EFFECTS } from './data/constants.js';
+
+function makeRng(seed) {
+  let s = (seed >>> 0) || 1;
+  return () => {
+    s = (1664525 * s + 1013904223) >>> 0;
+    return s / 0xffffffff;
+  };
+}
+
+function hashStrToU32(str) {
+  const s = String(str ?? '');
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h >>> 0;
+}
+
+function pick(rng, arr) {
+  return arr[Math.floor(rng() * arr.length)];
+}
 
 export class GameManager {
   constructor() {
@@ -20,6 +42,9 @@ export class GameManager {
     this.pendingDiscardReason = null;
 
     this.encounter = null; // { nodeId, type, floor, seed? }
+
+    // RUN persistence
+    this.run = null; // { seed, masterDeckKeys, hp, maxHp, gold }
   }
 
   setRenderer(renderer) {
@@ -27,51 +52,141 @@ export class GameManager {
   }
 
   // ----------------------------
-  // Encounter entry points
+  // RUN
+  // ----------------------------
+  startNewRun({ seed = Date.now() } = {}) {
+    this.run = {
+      seed,
+      masterDeckKeys: Array.isArray(STARTING_DECK) ? [...STARTING_DECK] : [],
+      hp: 30,
+      maxHp: 30,
+      gold: 0,
+    };
+  }
+
+  _ensureRun() {
+    if (!this.run) this.startNewRun({ seed: Date.now() });
+  }
+
+  _saveRunFromPlayer() {
+    const p = this.state.getPlayer();
+    if (!p || !this.run) return;
+    this.run.hp = Math.max(0, p.hp);
+    this.run.maxHp = p.maxHp ?? this.run.maxHp;
+  }
+
+  // ----------------------------
+  // Entry points
   // ----------------------------
   startGame() {
+    this._ensureRun();
     this.startEncounter({ nodeId: 'debug', type: 'FIGHT', floor: 0 });
   }
 
-  startEncounter(encounter) {
-    this.encounter = encounter ?? { nodeId: 'unknown', type: 'FIGHT', floor: 0 };
+  // ----------------------------
+  // Node rewards (auto)
+  // ----------------------------
+  applyNodeReward(node) {
+    this._ensureRun();
 
-    // reset core state
+    const floor = node?.floor ?? 0;
+    const seed = (this.run.seed ^ hashStrToU32(node?.id ?? 'node')) >>> 0;
+    const rng = makeRng(seed);
+
+    const type = node?.type;
+
+    // Общая награда за "не бой": чуть золота, чтобы SHOP имел смысл
+    if (type === 'EVENT') {
+      const roll = rng();
+      if (roll < 0.33) {
+        // free gold
+        this.run.gold += 25 + floor * 5;
+      } else if (roll < 0.66) {
+        // heal a bit
+        this.run.hp = Math.min(this.run.maxHp, this.run.hp + (6 + floor));
+      } else {
+        // maxHp up (маленький)
+        this.run.maxHp += 2;
+        this.run.hp = Math.min(this.run.maxHp, this.run.hp + 2);
+      }
+      return;
+    }
+
+    if (type === 'REWARD') {
+      // Добавляем 1 случайную карту в master deck (auto)
+      const pool = Object.keys(CardLibrary).filter(k => k !== 'STRIKE');
+      const gained = pick(rng, pool);
+      if (gained) this.run.masterDeckKeys.push(gained);
+      return;
+    }
+
+    if (type === 'SHOP') {
+      // Auto-shop:
+      // - если есть 40+ золота: удалить один STRIKE (если есть), иначе дать heal
+      // - если мало: просто heal
+      if (this.run.gold >= 40) {
+        const idx = this.run.masterDeckKeys.findIndex(k => k === 'STRIKE');
+        if (idx !== -1) {
+          this.run.masterDeckKeys.splice(idx, 1);
+          this.run.gold -= 40;
+        } else {
+          this.run.hp = Math.min(this.run.maxHp, this.run.hp + 8);
+          this.run.gold -= 20;
+        }
+      } else {
+        this.run.hp = Math.min(this.run.maxHp, this.run.hp + 6);
+      }
+      return;
+    }
+  }
+
+  // ----------------------------
+  // Encounter start
+  // ----------------------------
+  startEncounter(encounter) {
+    this._ensureRun();
+
+    this.encounter = encounter ?? { nodeId: 'unknown', type: 'FIGHT', floor: 0 };
+    const floor = this.encounter.floor ?? 0;
+
+    // reset combat state
     this.state.isGameOver = false;
     this.state.isPlayerTurn = true;
 
-    // clear units / obstacles / cards
     this.state.units = [];
     this.state.grid.obstacles = [];
     this.state.hand = [];
     this.state.deck = [];
     this.state.discard = [];
 
-    // clear UI transient
     this.selectedCardIndex = -1;
     this.pendingDiscard = 0;
     this.pendingDiscardReason = null;
 
+    // clear visuals from previous encounter
     this.renderer?.gridRenderer?.clearHighlight();
     this.renderer?.unitRenderer?.clearAll?.();
 
-    // deck init + opening draw
-    this.initDeck();
+    // theme + map variety
+    this.applyEncounterTheme(this.encounter);
+
+    // init combat deck from MASTER deck
+    this.initCombatDeckFromRun();
     this.drawToHand(5, 5);
 
-    // obstacles
-    this.spawnRock(1, 1);
-    this.spawnRock(0, 2);
+    // obstacles & enemies vary per node
+    this.spawnEncounterObstacles(this.encounter);
 
-    // hero
+    // hero (persist)
+    const spawn = this.getPlayerSpawnForFloor(floor);
     const hero = new UnitModel({
       id: 'hero',
       type: UNIT_TYPES.PLAYER,
       team: TEAMS.PLAYER,
-      x: 0,
-      y: 4,
-      hp: 30,
-      maxHp: 30,
+      x: spawn.x,
+      y: spawn.y,
+      hp: Math.max(1, this.run.hp), // чтобы после поражения можно было продолжить
+      maxHp: this.run.maxHp,
       mana: UNIT_STATS.PLAYER.MAX_MANA,
       maxMana: UNIT_STATS.PLAYER.MAX_MANA,
       movePoints: UNIT_STATS.PLAYER.MOVE_POINTS,
@@ -80,18 +195,92 @@ export class GameManager {
     this.state.addUnit(hero);
     this.state.emit(EVENTS.UNIT_SPAWNED, { unit: hero });
 
-    // enemies for this encounter
     this.spawnEncounterEnemies(this.encounter);
 
-    // announce encounter start
-    this.state.wave = (this.encounter.floor ?? 0) + 1;
+    this.state.wave = floor + 1;
     this.state.emit(EVENTS.WAVE_STARTED, { wave: this.state.wave, encounter: this.encounter });
 
     this.startPlayerTurn(true);
   }
 
+  // ----------------------------
+  // Theme + variety
+  // ----------------------------
+  applyEncounterTheme(enc) {
+    const floor = enc?.floor ?? 0;
+
+    const themes = [
+      { light: 0x3b3a37, dark: 0x2f2e2b, hover: 0x8b7355, frame: 0xc9a66b },
+      { light: 0x2f3a3b, dark: 0x232c2d, hover: 0x62a0a5, frame: 0x7fb6ba },
+      { light: 0x3b2f2f, dark: 0x2d2323, hover: 0xaa6a6a, frame: 0xd2a07a },
+      { light: 0x2f3b2f, dark: 0x232d23, hover: 0x6faa6f, frame: 0x9bd29b },
+    ];
+
+    const theme = themes[floor % themes.length];
+    this.renderer?.gridRenderer?.setTheme?.(theme);
+  }
+
+  getPlayerSpawnForFloor(floor) {
+    const spawns = [
+      { x: 0, y: 4 },
+      { x: 0, y: 6 },
+      { x: 1, y: 7 },
+      { x: 0, y: 7 },
+    ];
+    return spawns[floor % spawns.length];
+  }
+
+  spawnEncounterObstacles(enc) {
+    const floor = enc?.floor ?? 0;
+    const seed = (this.run.seed ^ hashStrToU32(enc?.nodeId)) >>> 0;
+    const rng = makeRng(seed);
+
+    const rocks = 2 + Math.min(4, Math.floor(floor / 2));
+    let placed = 0;
+    let attempts = 0;
+
+    const start = this.getPlayerSpawnForFloor(floor);
+
+    while (placed < rocks && attempts < 250) {
+      attempts++;
+
+      const x = Math.floor(rng() * this.state.grid.width);
+      const y = Math.floor(rng() * this.state.grid.height);
+
+      // не рядом со стартом
+      const tooClose = Math.max(Math.abs(x - start.x), Math.abs(y - start.y)) <= 1;
+      if (tooClose) continue;
+
+      // не в юнита
+      if (this.state.getUnitAt(x, y)) continue;
+
+      const rock = new UnitModel({
+        id: `rock_${floor}_${placed}_${x}_${y}`,
+        type: UNIT_TYPES.OBSTACLE,
+        team: TEAMS.NEUTRAL,
+        x,
+        y,
+        hp: 10,
+        maxHp: 10,
+      });
+
+      this.state.addUnit(rock);
+      this.state.emit(EVENTS.UNIT_SPAWNED, { unit: rock });
+      placed++;
+    }
+  }
+
   spawnEncounterEnemies(enc) {
     const floor = enc?.floor ?? 0;
+    const seed = (this.run.seed ^ (hashStrToU32(enc?.nodeId) + 1337)) >>> 0;
+    const rng = makeRng(seed);
+
+    const trySpawn = (unit) => {
+      if (!this.state.isWalkable(unit.x, unit.y)) return false;
+      this.state.addUnit(unit);
+      this.state.emit(EVENTS.UNIT_SPAWNED, { unit });
+      return true;
+    };
 
     if (enc?.type === 'BOSS') {
       const boss = new UnitModel({
@@ -100,53 +289,51 @@ export class GameManager {
         team: TEAMS.ENEMY,
         x: 3,
         y: 3,
-        hp: 60 + floor * 10,
-        maxHp: 60 + floor * 10,
+        hp: 60 + floor * 12,
+        maxHp: 60 + floor * 12,
         movePoints: UNIT_STATS.ENEMY_MELEE.MOVE_POINTS,
       });
 
-      this.state.addUnit(boss);
-      this.state.emit(EVENTS.UNIT_SPAWNED, { unit: boss });
+      if (!trySpawn(boss)) {
+        for (const p of [{ x: 3, y: 2 }, { x: 2, y: 3 }, { x: 3, y: 4 }, { x: 1, y: 3 }]) {
+          boss.x = p.x; boss.y = p.y;
+          if (trySpawn(boss)) break;
+        }
+      }
       return;
     }
 
-    const enemyCount = 1 + Math.floor(floor / 2);
+    const enemyCount = 2 + Math.min(3, Math.floor(floor / 2));
+    const rangedChance = Math.min(0.75, 0.25 + floor * 0.1);
+
     for (let i = 0; i < enemyCount; i++) {
-      const ex = 3;
-      const ey = (i * 2) % this.state.grid.height;
+      const type = (rng() < rangedChance) ? UNIT_TYPES.ENEMY_RANGED : UNIT_TYPES.ENEMY_MELEE;
+      const x = Math.max(0, this.state.grid.width - 1 - Math.floor(rng() * 2));
+      const y = Math.floor(rng() * this.state.grid.height);
+
+      const hpBase = (type === UNIT_TYPES.ENEMY_RANGED) ? 12 : 16;
 
       const enemy = new UnitModel({
-        id: `enemy_${floor}_${i}`,
-        type: i % 2 === 0 ? UNIT_TYPES.ENEMY_MELEE : UNIT_TYPES.ENEMY_RANGED,
+        id: `enemy_${floor}_${i}_${type}`,
+        type,
         team: TEAMS.ENEMY,
-        x: ex,
-        y: ey,
-        hp: 15 + floor * 4,
-        maxHp: 15 + floor * 4,
-        movePoints: UNIT_STATS.ENEMY_MELEE.MOVE_POINTS,
+        x,
+        y,
+        hp: hpBase + floor * 4,
+        maxHp: hpBase + floor * 4,
+        movePoints:
+          type === UNIT_TYPES.ENEMY_RANGED
+            ? UNIT_STATS.ENEMY_RANGED.MOVE_POINTS
+            : UNIT_STATS.ENEMY_MELEE.MOVE_POINTS,
       });
 
-      this.state.addUnit(enemy);
-      this.state.emit(EVENTS.UNIT_SPAWNED, { unit: enemy });
+      let ok = trySpawn(enemy);
+      for (let t = 0; !ok && t < 20; t++) {
+        enemy.x = Math.floor(rng() * this.state.grid.width);
+        enemy.y = Math.floor(rng() * this.state.grid.height);
+        ok = trySpawn(enemy);
+      }
     }
-  }
-
-  // ----------------------------
-  // Obstacles
-  // ----------------------------
-  spawnRock(x, y) {
-    const rock = new UnitModel({
-      id: `rock_${x}_${y}`,
-      type: UNIT_TYPES.OBSTACLE,
-      team: TEAMS.NEUTRAL,
-      x,
-      y,
-      hp: 10,
-      maxHp: 10,
-    });
-
-    this.state.addUnit(rock);
-    this.state.emit(EVENTS.UNIT_SPAWNED, { unit: rock });
   }
 
   // ----------------------------
@@ -163,9 +350,8 @@ export class GameManager {
     }
   }
 
-  initDeck() {
-    const base = Array.isArray(STARTING_DECK) ? [...STARTING_DECK] : [];
-    this.state.deck = base;
+  initCombatDeckFromRun() {
+    this.state.deck = [...(this.run?.masterDeckKeys ?? [])];
     this.state.discard = [];
     this.shuffle(this.state.deck);
 
@@ -240,17 +426,15 @@ export class GameManager {
       this.discardFromHand(index);
       return;
     }
-
     this.selectCard(index);
   }
 
   // ----------------------------
-  // Card selection / highlight
+  // Cards (autoplay self)
   // ----------------------------
   _isAutoPlaySelfCard(card) {
     if (!card) return false;
     if ((card.range ?? 0) !== 0) return false;
-
     return (
       card.effect === CARD_EFFECTS.HEAL ||
       card.effect === CARD_EFFECTS.SHIELD ||
@@ -274,7 +458,6 @@ export class GameManager {
     const card = this.state.hand[index];
     const player = this.state.getPlayer();
 
-    // Self cards (heal/shield/loot): играем сразу по клику на карту
     if (this._isAutoPlaySelfCard(card) && player) {
       void this.handleTileClick(player.x, player.y);
       return;
@@ -293,7 +476,7 @@ export class GameManager {
 
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const dist = Math.max(Math.abs(x - player.x), Math.abs(y - player.y));
+        const dist = Math.abs(x - player.x) + Math.abs(y - player.y);
         if (dist <= (card.range ?? 0) && CardEffects.canPlay(card, x, y)) {
           tiles.push({ x, y });
         }
@@ -310,7 +493,7 @@ export class GameManager {
   }
 
   // ----------------------------
-  // Input: tile click
+  // Input
   // ----------------------------
   async handleTileClick(x, y) {
     if (!this.state.isPlayerTurn) return;
@@ -320,7 +503,7 @@ export class GameManager {
     const player = this.state.getPlayer();
     if (!player) return;
 
-    // ---- play card ----
+    // play card
     if (this.selectedCardIndex !== -1) {
       const card = this.state.hand[this.selectedCardIndex];
       if (!card) return;
@@ -330,17 +513,14 @@ export class GameManager {
 
       player.mana -= (card.cost ?? 0);
 
-      // remove from hand first
       const [played] = this.state.hand.splice(this.selectedCardIndex, 1);
       this.selectedCardIndex = -1;
 
-      // send to discard
       if (played?.key) {
         this.state.discard.push(played.key);
         this.state.emit(EVENTS.DISCARD_CHANGED);
       }
 
-      // effect
       if (
         played?.key === 'LOOT' ||
         played?.id === 'loot' ||
@@ -360,7 +540,7 @@ export class GameManager {
       return;
     }
 
-    // ---- movement ----
+    // movement
     const path = PathFinding.findPath(player.x, player.y, x, y);
     if (path && path.length - 1 <= player.movePoints) {
       const target = path[path.length - 1];
@@ -381,29 +561,31 @@ export class GameManager {
     this.state.isPlayerTurn = false;
     this.selectedCardIndex = -1;
     this.renderer?.gridRenderer?.clearHighlight();
-
-    // UI сразу обновим, чтобы кнопка стала disabled на время хода врагов
     this.ui.updateAll();
 
-    // ход врагов
     await AILogic.executeTurn();
 
-    // Победа могла случиться на ходе врагов (яд/турели)
+    // если игрок умер на ходу врага
+    const player = this.state.getPlayer();
+    if (!player || player.isDead) {
+      this.handleDefeatAndContinue();
+      return;
+    }
+
+    // если врагов больше нет — победа (checkEncounterStatus сделает emit и вернёт на карту)
     if (this.state.getEnemies().length === 0) {
       this.checkEncounterStatus();
       return;
     }
 
-    // Возвращаем ход игроку
+    // иначе — НАЧИНАЕМ следующий ход игрока
     this.startPlayerTurn(false);
   }
 
   startPlayerTurn(isFirstTurn) {
     const player = this.state.getPlayer();
     if (!player || player.isDead) {
-      this.state.isGameOver = true;
-      this.state.isPlayerTurn = false;
-      this.state.emit(EVENTS.GAME_OVER, { reason: 'DEFEAT', encounter: this.encounter });
+      this.handleDefeatAndContinue();
       return;
     }
 
@@ -419,12 +601,38 @@ export class GameManager {
     this.state.emit(EVENTS.TURN_START);
   }
 
+  handleDefeatAndContinue() {
+    this._ensureRun();
+    this._saveRunFromPlayer();
+
+    // “продолжить с карты”: авто-реанимация и штраф по золоту
+    const reviveHp = Math.max(1, Math.floor(this.run.maxHp * 0.5));
+    this.run.hp = reviveHp;
+    this.run.gold = Math.floor((this.run.gold ?? 0) * 0.7);
+
+    this.state.isGameOver = true;
+    this.state.isPlayerTurn = false;
+    this.state.emit(EVENTS.GAME_OVER, { reason: 'DEFEAT', encounter: this.encounter });
+  }
+
   // ----------------------------
-  // Win/lose for ONE encounter
+  // Victory
   // ----------------------------
   checkEncounterStatus() {
     const enemies = this.state.getEnemies();
     if (enemies.length === 0) {
+      this._ensureRun();
+      this._saveRunFromPlayer();
+
+      const floor = this.encounter?.floor ?? 0;
+      this.run.gold += 10 + floor * 5;
+
+      // маленький рост maxHp раз в несколько этажей
+      if (floor > 0 && floor % 3 === 0) {
+        this.run.maxHp += 1;
+        this.run.hp = Math.min(this.run.maxHp, this.run.hp + 1);
+      }
+
       this.state.isPlayerTurn = false;
       this.state.emit(EVENTS.WAVE_COMPLETED, { encounter: this.encounter });
     }

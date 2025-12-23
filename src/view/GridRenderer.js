@@ -14,6 +14,26 @@ export class GridRenderer {
     this.highlightedTiles = [];
     this.onTileClick = onTileClick;
 
+    this.theme = {
+      light: 0x3b3a37,
+      dark: 0x2f2e2b,
+      hover: 0x8b7355,
+      frame: 0xc9a66b,
+    };
+
+    this.renderInitialGrid();
+    this.centerGrid();
+    this.drawBoardFrame();
+  }
+
+  setTheme(theme) {
+    if (!theme) return;
+    this.theme = { ...this.theme, ...theme };
+
+    this.container.removeChildren();
+    this.tiles = [];
+    this.highlightedTiles = [];
+
     this.renderInitialGrid();
     this.centerGrid();
     this.drawBoardFrame();
@@ -44,7 +64,8 @@ export class GridRenderer {
     g.closePath();
 
     const isLight = (x + y) % 2 === 0;
-    const baseColor = isLight ? 0x3b3a37 : 0x2f2e2b;
+    const baseColor = isLight ? this.theme.light : this.theme.dark;
+
     g.fill({ color: baseColor });
     g.stroke({ width: 1.5, color: 0x17130f });
 
@@ -55,20 +76,11 @@ export class GridRenderer {
     g.interactive = true;
     g.cursor = 'pointer';
 
-    g.hitArea = new Polygon([
-      0, -halfH,
-      halfW, 0,
-      0, halfH,
-      -halfW, 0,
-    ]);
+    g.hitArea = new Polygon([0, -halfH, halfW, 0, 0, halfH, -halfW, 0]);
 
     g.on('pointerdown', () => this.onTileClick(x, y));
-    g.on('pointerover', () => {
-      if (!g.isHighlighted) g.tint = 0x8b7355;
-    });
-    g.on('pointerout', () => {
-      if (!g.isHighlighted) g.tint = 0xffffff;
-    });
+    g.on('pointerover', () => { if (!g.isHighlighted) g.tint = this.theme.hover; });
+    g.on('pointerout', () => { if (!g.isHighlighted) g.tint = 0xffffff; });
 
     this.container.addChild(g);
     this.tiles.push({ x, y, graphic: g, defaultColor: 0xffffff });
@@ -84,47 +96,26 @@ export class GridRenderer {
 
     const offset = 16;
 
-    frame.lineStyle({ width: 6, color: 0xc9a66b, alpha: 1 });
+    frame.lineStyle({ width: 6, color: this.theme.frame, alpha: 1 });
     frame.moveTo(topLeft.x - offset, topLeft.y - TILE_HEIGHT / 2);
     frame.lineTo(topRight.x + offset, topRight.y - TILE_HEIGHT / 2);
-    frame.lineTo(
-      bottomRight.x + offset,
-      bottomRight.y + TILE_HEIGHT / 2
-    );
-    frame.lineTo(
-      bottomLeft.x - offset,
-      bottomLeft.y + TILE_HEIGHT / 2
-    );
+    frame.lineTo(bottomRight.x + offset, bottomRight.y + TILE_HEIGHT / 2);
+    frame.lineTo(bottomLeft.x - offset, bottomLeft.y + TILE_HEIGHT / 2);
     frame.closePath();
 
     frame.lineStyle({ width: 2, color: 0x120e0a, alpha: 0.8 });
-    frame.moveTo(
-      topLeft.x - offset + 4,
-      topLeft.y - TILE_HEIGHT / 2 + 4
-    );
-    frame.lineTo(
-      topRight.x + offset - 4,
-      topRight.y - TILE_HEIGHT / 2 + 4
-    );
-    frame.lineTo(
-      bottomRight.x + offset - 4,
-      bottomRight.y + TILE_HEIGHT / 2 - 4
-    );
-    frame.lineTo(
-      bottomLeft.x - offset + 4,
-      bottomLeft.y + TILE_HEIGHT / 2 - 4
-    );
-    frame.closePath();
-
     frame.zIndex = -1500;
+
     this.container.addChild(frame);
   }
 
   highlight(tiles, color = 0x8b7355) {
     this.clearHighlight();
+
     tiles.forEach((pos) => {
       const tile = this.tiles.find((t) => t.x === pos.x && t.y === pos.y);
       if (!tile) return;
+
       tile.graphic.tint = color;
       tile.graphic.isHighlighted = true;
       this.highlightedTiles.push(tile);

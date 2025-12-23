@@ -1,5 +1,4 @@
 // run/RunFlowController.js
-
 import { RunController, RUN_ACTION } from './RunController.js';
 import { renderRunMapSVG } from './RunMapView.js';
 import { EVENTS } from '../data/constants.js';
@@ -12,12 +11,10 @@ export class RunFlowController {
   constructor({ gameManager }) {
     this.gameManager = gameManager;
 
-    // scenes / hud
     this.hud = $('ui-layer');
     this.sceneMenu = $('scene-menu');
     this.sceneMap = $('scene-map');
 
-    // map ui
     this.btnNewRun = $('menu-new-run');
     this.btnOpenMap = $('menu-open-map');
     this.btnMapBackToMenu = $('map-back-to-menu');
@@ -26,7 +23,6 @@ export class RunFlowController {
     this.mapRunStatus = $('map-run-status');
     this.svgMap = $('run-map-active');
 
-    // modals
     this.shopModal = $('shop-modal');
     this.rewardModal = $('reward-modal');
     this.eventModal = $('event-modal');
@@ -37,71 +33,59 @@ export class RunFlowController {
     this.eventClose = $('event-modal-close');
     this.resultClose = $('result-modal-close');
 
-    // core run logic (без DOM)
     this.run = new RunController({ floors: 9 });
 
-    // bindings
     this._unsubRun = null;
     this._unsubWaveCompleted = null;
     this._unsubGameOver = null;
 
-    // one-shot modal close handler
     this._activeModalCleanup = null;
   }
 
   init() {
-    // start in MENU
     show(this.sceneMenu);
     hide(this.sceneMap);
     this._showHUD(false);
 
-    // render updates
     this._unsubRun = this.run.subscribe((snapshot) => this._render(snapshot));
 
-    // buttons
     this.btnNewRun?.addEventListener('click', () => this.startNewRun());
     this.btnOpenMap?.addEventListener('click', () => this.goToMap());
     this.btnMapBackToMenu?.addEventListener('click', () => this.goToMenu());
     this.btnMapEnter?.addEventListener('click', () => this.enterSelected());
 
-    // modal close buttons (просто закрывают; “завершение узла” ставим локальным handler-ом при открытии)
     this.shopClose?.addEventListener('click', () => this._closeModal(this.shopModal));
     this.rewardClose?.addEventListener('click', () => this._closeModal(this.rewardModal));
     this.eventClose?.addEventListener('click', () => this._closeModal(this.eventModal));
     this.resultClose?.addEventListener('click', () => this._closeModal(this.resultModal));
 
-    // hotkeys
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         if (this.run.inBattle) {
-          // временно: просто показать карту и считать “не в бою”
           this.run.setInBattle(false);
           this.goToMap();
         } else {
           this.goToMenu();
         }
       }
-
       if (e.key.toLowerCase() === 'm') this.goToMap();
       if (e.key === 'Enter') this.enterSelected();
     });
 
-    // game events -> run progression
-    // победа: отмечаем узел пройденным и возвращаемся на карту
+    // Победа в энкаунтере => узел пройден, вернуться на карту
     this._unsubWaveCompleted = this.gameManager.state.on(EVENTS.WAVE_COMPLETED, ({ encounter }) => {
       if (encounter?.nodeId) this.run.completeNode(encounter.nodeId);
       this.run.setInBattle(false);
       this.goToMap();
     });
 
-    // поражение: показать result modal
-    this._unsubGameOver = this.gameManager.state.on(EVENTS.GAME_OVER, (_payload) => {
+    // Поражение => НЕ завершаем ран, просто вернуться на карту (можно снова войти в узел)
+    this._unsubGameOver = this.gameManager.state.on(EVENTS.GAME_OVER, () => {
       show(this.resultModal);
       this.run.setInBattle(false);
       this.goToMap();
     });
 
-    // initial render (empty)
     this._render(this.run.getSnapshot());
   }
 
@@ -113,7 +97,9 @@ export class RunFlowController {
   }
 
   startNewRun() {
-    this.run.startNewRun({ seed: Date.now(), floors: 9 });
+    const snap = this.run.startNewRun({ seed: Date.now(), floors: 9 });
+    this.gameManager.startNewRun({ seed: snap.seed }); // важно для прогресса игрока
+
     hide(this.sceneMenu);
     show(this.sceneMap);
     this._showHUD(false);
@@ -142,12 +128,10 @@ export class RunFlowController {
     }
 
     if (action.kind === RUN_ACTION.ENCOUNTER) {
-      // hide map, show HUD and start encounter
       hide(this.sceneMenu);
       hide(this.sceneMap);
       this._showHUD(true);
 
-      // запускаем бой как “энкаунтер одного узла”
       this.gameManager.startEncounter(action.encounter);
       return;
     }
@@ -155,21 +139,23 @@ export class RunFlowController {
 
   _openNodeModal(node) {
     const modal = this._getModalByNodeType(node.type);
+    const that = this;
 
-    // снять предыдущий “complete-on-close”, если забыли
     this._activeModalCleanup?.();
     this._activeModalCleanup = null;
 
     show(modal);
 
-    // на закрытии: отметить узел пройденным
     const handler = () => {
-      this._closeModal(modal);
-      this.run.completeNode(node.id);
-      this.run.clearSelection();
+      that._closeModal(modal);
+
+      // Авто-награда/эффект узла (SHOP/REWARD/EVENT)
+      that.gameManager.applyNodeReward?.(node);
+
+      that.run.completeNode(node.id);
+      that.run.clearSelection();
     };
 
-    // one-shot: подписываемся на конкретную кнопку закрытия
     const closeBtn = this._getCloseBtnByNodeType(node.type);
     closeBtn?.addEventListener('click', handler);
     this._activeModalCleanup = () => closeBtn?.removeEventListener('click', handler);
@@ -201,7 +187,6 @@ export class RunFlowController {
   }
 
   _render(snapshot) {
-    // map render
     if (snapshot.map && this.svgMap) {
       renderRunMapSVG({
         svg: this.svgMap,
@@ -211,12 +196,10 @@ export class RunFlowController {
       });
     }
 
-    // selected info
     const node = snapshot.selectedNode;
     if (!node) {
       if (this.btnMapEnter) this.btnMapEnter.disabled = true;
       if (this.mapSelectedInfo) this.mapSelectedInfo.innerText = 'Нажми на узел на карте.';
-      if (this.mapRunStatus) this.mapRunStatus.innerText = 'Choose your path.';
       return;
     }
 
