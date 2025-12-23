@@ -12,10 +12,19 @@ export class AILogic {
 
     // 1) Ходят враги
     for (const enemy of enemies) {
-      await new Promise((r) => setTimeout(r, 500));
+      if (!enemy || enemy.isDead) continue;
+
+      // В НАЧАЛЕ ХОДА ВРАГА: тикают статусы (яд и т.п.)
+      BattleLogic.applyStatusEffects(enemy);
+
+      // если яд убил — враг ход не делает
       if (enemy.isDead) continue;
 
+      // небольшая пауза, чтобы визуально было читаемо
+      await new Promise((r) => setTimeout(r, 350));
+
       await this.processEnemyAction(enemy, player);
+
       if (player.isDead) break;
     }
 
@@ -53,7 +62,8 @@ export class AILogic {
       const dy = Math.abs(enemy.y - t.y);
       if (!this.canEnemyAttackRaw(enemy, dx, dy, stats)) continue;
 
-      const dist = dx + dy;
+      // Chebyshev dist
+      const dist = Math.max(dx, dy);
       if (dist < bestDist) {
         bestDist = dist;
         turretTarget = t;
@@ -67,7 +77,6 @@ export class AILogic {
     }
 
     // --- 3. Если никого ударить нельзя — двигаться / убегать ---
-
     // Лучник отбегает, если слишком близко к игроку
     if (
       enemy.type === UNIT_TYPES.ENEMY_RANGED &&
@@ -81,8 +90,8 @@ export class AILogic {
       );
 
       moves.sort((a, b) => {
-        const distA = Math.abs(a.x - player.x) + Math.abs(a.y - player.y);
-        const distB = Math.abs(b.x - player.x) + Math.abs(b.y - player.y);
+        const distA = Math.max(Math.abs(a.x - player.x), Math.abs(a.y - player.y));
+        const distB = Math.max(Math.abs(b.x - player.x), Math.abs(b.y - player.y));
         return distB - distA;
       });
 
@@ -107,29 +116,30 @@ export class AILogic {
     BattleLogic.moveUnit(enemy, step.x, step.y);
   }
 
-  // Проверка атаки по произвольной цели (игрок или турель)
   static canEnemyAttackTarget(enemy, target, stats) {
     const dx = Math.abs(enemy.x - target.x);
     const dy = Math.abs(enemy.y - target.y);
     return this.canEnemyAttackRaw(enemy, dx, dy, stats);
   }
 
-  // Общая логика досягаемости по dx/dy
   static canEnemyAttackRaw(enemy, dx, dy, stats) {
     if (enemy.type === UNIT_TYPES.ENEMY_RANGED) {
-      const dist = dx + dy;
+      // Range по диагоналям (Chebyshev)
+      const dist = Math.max(dx, dy);
       return dist >= stats.RANGE_MIN && dist <= stats.RANGE_MAX;
     }
-    // милишник
+
+    // милишник: 8-соседей
     return dx <= 1 && dy <= 1;
   }
 
-  // --- Логика турелей игрока ---
   static processTurrets() {
     const state = GameState.getInstance();
+
     const turrets = state.units.filter(
       (u) => u.type === UNIT_TYPES.SUMMON_TURRET && !u.isDead
     );
+
     const enemies = state.getEnemies();
     if (turrets.length === 0 || enemies.length === 0) return;
 
@@ -141,8 +151,12 @@ export class AILogic {
 
       for (const enemy of enemies) {
         if (enemy.isDead) continue;
-        const dist =
-          Math.abs(enemy.x - turret.x) + Math.abs(enemy.y - turret.y);
+
+        const dist = Math.max(
+          Math.abs(enemy.x - turret.x),
+          Math.abs(enemy.y - turret.y)
+        );
+
         if (dist <= RANGE && dist < bestDist) {
           bestDist = dist;
           best = enemy;

@@ -72,24 +72,26 @@ export const CardLibrary = {
     description: 'Gain 8 shield',
   },
 
+  // Теперь это реально AoE-эффект
   CLEAV: {
     id: 'cleave',
     name: 'Cleave',
     cost: 2,
     value: 6,
-    range: 2,
-    effect: CARD_EFFECTS.DAMAGE,
-    description: 'Deal 6 to all enemies in range',
+    range: 2, // дистанция к цели
+    effect: CARD_EFFECTS.CLEAV,
+    description: 'Deal 6 to target and nearby enemies',
   },
 
+  // Теперь это реально яд
   POISON: {
     id: 'poison',
     name: 'Poison Dart',
     cost: 1,
-    value: 3,
+    value: 3, // мгновенный урон
     range: 3,
-    effect: CARD_EFFECTS.DAMAGE,
-    description: 'Deal 3 + 2 poison/turn x3',
+    effect: CARD_EFFECTS.POISON,
+    description: 'Deal 3 + 2 poison/turn x3 (ticks on enemy turns)',
   },
 
   BASH: {
@@ -103,18 +105,18 @@ export const CardLibrary = {
   },
 };
 
-// ★★★ ИСПРАВЛЕННАЯ СТАРТОВАЯ КОЛОДА со ВСЕМИ картами ★★★
+// ★★★ СТАРТОВАЯ КОЛОДА ★★★
 export const STARTING_DECK = [
-  'STRIKE', 'STRIKE', 'STRIKE', 'STRIKE', // 4x базовый урон
-  'FIREBALL', 'FIREBALL',                 // 2x дальний урон
-  'HEAL', 'HEAL',                         // 2x лечение
-  'DASH',                                 // движение
-  'TURRET',                               // саммон
-  'LOOT', 'LOOT',                         // перетасовка
-  'SHIELD',                               // защита
-  'CLEAV',                                // AoE
-  'POISON',                               // DoT
-  'BASH',                                 // сильный удар + добор
+  'STRIKE', 'STRIKE', 'STRIKE', 'STRIKE',
+  'FIREBALL', 'FIREBALL',
+  'HEAL', 'HEAL',
+  'DASH',
+  'TURRET',
+  'LOOT', 'LOOT',
+  'SHIELD',
+  'CLEAV',
+  'POISON',
+  'BASH',
 ];
 
 // Хелпер для получения копии карты (с key для discard)

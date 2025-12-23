@@ -361,4 +361,15 @@ export class UnitRenderer {
       },
     });
   }
+
+  clearAll() {
+    // Убиваем все визуалы юнитов, иначе новый энкаунтер будет “наследовать” старые спрайты
+    for (const entry of this.unitSprites.values()) {
+      entry?.container?.destroy({ children: true });
+    }
+    this.unitSprites.clear();
+
+    // На всякий случай подчистить контейнер (если что-то не попало в unitSprites)
+    this.container.removeChildren();
+  }
 }
