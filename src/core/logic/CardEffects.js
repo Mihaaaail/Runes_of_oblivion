@@ -9,6 +9,7 @@ export class CardEffects {
   static canPlay(card, targetX, targetY) {
     const state = GameState.getInstance();
     const player = state.getPlayer();
+
     if (!player) return false;
 
     const dist = Math.abs(player.x - targetX) + Math.abs(player.y - targetY);
@@ -28,6 +29,8 @@ export class CardEffects {
       case CARD_EFFECTS.SUMMON:
         return state.isWalkable(targetX, targetY);
 
+      case CARD_EFFECTS.SHIELD:
+      case CARD_EFFECTS.POISON:
       default:
         return true;
     }
@@ -37,6 +40,7 @@ export class CardEffects {
   static execute(card, targetX, targetY) {
     const state = GameState.getInstance();
     const player = state.getPlayer();
+
     if (!player) return;
 
     switch (card.effect) {
@@ -69,6 +73,7 @@ export class CardEffects {
           x: targetX,
           y: targetY,
           hp: card.value,
+          maxHp: card.value,
           maxMana: 0,
         });
 
@@ -77,10 +82,28 @@ export class CardEffects {
         break;
       }
 
+      case CARD_EFFECTS.SHIELD: {
+        BattleLogic.addShield(player, card.value);
+        break;
+      }
+
+      case CARD_EFFECTS.POISON: {
+        const target = state.getUnitAt(targetX, targetY);
+        if (target && target.team === TEAMS.ENEMY) {
+          BattleLogic.dealDamage(player, target, card.value);
+          BattleLogic.addPoison(target, 2, 3); // 2 dmg/turn x 3 turns
+        }
+        break;
+      }
+
       case CARD_EFFECTS.TERRAIN: {
         state.grid.addTileEffect(targetX, targetY, 'fire', card.value);
         break;
       }
+
+      default:
+        console.warn(`Unknown card effect: ${card.effect}`);
+        break;
     }
   }
 }

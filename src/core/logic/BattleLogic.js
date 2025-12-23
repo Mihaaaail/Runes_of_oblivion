@@ -2,61 +2,79 @@ import { GameState } from '../state/GameState.js';
 import { EVENTS } from '../../data/constants.js';
 
 export class BattleLogic {
-    static dealDamage(sourceUnit, targetUnit, amount) {
-        const state = GameState.getInstance();
-        
-        // Расчет урона
-        const result = targetUnit.takeDamage(amount);
-        
-        // Эмитим события для UI и Анимаций
-        state.emit(EVENTS.UNIT_DAMAGED, {
-            target: targetUnit,
-            source: sourceUnit,
-            amount: result.damageDealt,
-            isCritical: false 
-        });
-
-        if (result.isDead) {
-            this.killUnit(targetUnit);
-        }
-    }
-
-    static heal(targetUnit, amount) {
-        const state = GameState.getInstance();
-        const oldHp = targetUnit.hp;
-        targetUnit.heal(amount);
-        const healedAmount = targetUnit.hp - oldHp;
-
-        if (healedAmount > 0) {
-            state.emit(EVENTS.UNIT_HEALED, {
-                target: targetUnit,
-                amount: healedAmount
-            });
-        }
-    }
-
-    static addShield(targetUnit, amount) {
-        targetUnit.addShield(amount);
-        // Можно добавить событие UNIT_SHIELDED
-    }
-
-    static killUnit(unit) {
-        const state = GameState.getInstance();
-        
-        // Гарантируем, что юнит помечен мертвым
-        unit.isDead = true;
-
-        state.emit(EVENTS.UNIT_DIED, { unit });
-        
-        // Мы НЕ удаляем юнита из state.units сразу через removeUnit,
-        // чтобы Renderer мог прочитать его данные для анимации.
-        // Фильтрация живых идет через getEnemies() и getUnitAt().
-    }
+  static dealDamage(attacker, target, amount) {
+    const state = GameState.getInstance();
     
-    static moveUnit(unit, x, y) {
-        const state = GameState.getInstance();
-        unit.x = x;
-        unit.y = y;
-        state.emit(EVENTS.UNIT_MOVED, { unit, x, y });
+    // Сначала щит
+    if (target.shield > 0) {
+      const absorbed = Math.min(amount, target.shield);
+      target.shield -= absorbed;
+      amount -= absorbed;
     }
+
+    // Затем HP
+    if (amount > 0) {
+      target.hp -= amount;
+    }
+
+    state.emit(EVENTS.UNIT_DAMAGED, { target });
+
+    if (target.hp <= 0) {
+      target.isDead = true;
+      state.removeUnit(target.id);
+      state.emit(EVENTS.UNIT_DIED, { unit: target });
+    }
+  }
+
+  static heal(target, amount) {
+    const state = GameState.getInstance();
+    
+    target.hp = Math.min(target.maxHp, target.hp + amount);
+    state.emit(EVENTS.UNIT_HEALED, { target });
+  }
+
+  static addShield(target, amount) {
+    const state = GameState.getInstance();
+    
+    target.shield = (target.shield || 0) + amount;
+    state.emit(EVENTS.UNIT_HEALED, { target }); // shield как heal для UI
+  }
+
+  static addPoison(target, damagePerTurn, turns) {
+    const state = GameState.getInstance();
+    
+    target.poisonDamage = (target.poisonDamage || 0) + damagePerTurn;
+    target.poisonTurns = (target.poisonTurns || 0) + turns;
+    
+    // Применяем poison сразу
+    this.dealDamage({ type: 'poison' }, target, damagePerTurn);
+    state.emit(EVENTS.UNIT_DAMAGED, { target });
+  }
+
+  static moveUnit(unit, newX, newY) {
+    const state = GameState.getInstance();
+    
+    unit.x = newX;
+    unit.y = newY;
+    
+    state.emit(EVENTS.UNIT_MOVED, { unit, x: newX, y: newY });
+  }
+
+  // Вызывается в начале хода врагов для статусов
+  static applyStatusEffects(unit) {
+    const state = GameState.getInstance();
+    
+    // Poison tick
+    if (unit.poisonDamage > 0 && unit.poisonTurns > 0) {
+      this.dealDamage({ type: 'poison' }, unit, unit.poisonDamage);
+      unit.poisonTurns--;
+      
+      if (unit.poisonTurns <= 0) {
+        unit.poisonDamage = 0;
+        unit.poisonTurns = 0;
+      }
+      
+      state.emit(EVENTS.UNIT_DAMAGED, { target: unit });
+    }
+  }
 }

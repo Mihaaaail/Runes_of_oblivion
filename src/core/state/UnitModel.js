@@ -1,71 +1,73 @@
-import { UNIT_STATS, UNIT_TYPES } from '../../data/constants.js';
+import { UNIT_TYPES, TEAMS } from '../../data/constants.js';
 
 export class UnitModel {
-    constructor(data) {
-        this.id = data.id;
-        this.type = data.type;
-        this.team = data.team;
+  constructor(data = {}) {
+    this.id = data.id ?? `unit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        this.x = data.x;
-        this.y = data.y;
+    this.type = data.type ?? UNIT_TYPES.ENEMY;
+    // ВАЖНО: team может быть 0 (TEAMS.PLAYER), поэтому только ??
+    this.team = data.team ?? TEAMS.ENEMY;
 
-        this.maxHp = data.hp;
-        this.hp = data.hp;
+    this.x = data.x ?? 0;
+    this.y = data.y ?? 0;
 
-        const baseStats = UNIT_STATS.PLAYER; // дефолт, ниже поправим
+    // Основные статы
+    this.maxHp = data.maxHp ?? 10;
+    this.hp = data.hp ?? this.maxHp;
 
-        if (this.type === UNIT_TYPES.ENEMY_MELEE) {
-        this.movePoints = UNIT_STATS.ENEMY_MELEE.MOVE_POINTS;
-        } else if (this.type === UNIT_TYPES.ENEMY_RANGED) {
-        this.movePoints = UNIT_STATS.ENEMY_RANGED.MOVE_POINTS;
-        } else {
-        // игрок и прочие
-        this.movePoints = UNIT_STATS.PLAYER.MOVE_POINTS;
-        }
+    this.maxMana = data.maxMana ?? 0;
+    this.mana = data.mana ?? this.maxMana;
 
-        this.maxMana = data.maxMana ?? UNIT_STATS.PLAYER.MAX_MANA;
-        this.mana = data.mana ?? this.maxMana;
+    this.movePoints = data.movePoints ?? 0;
 
-        this.isDead = false;
-        this.shield = 0;
-        this.buffs = [];
-        this.intent = null;
+    // Статусы
+    this.shield = data.shield ?? 0;
+    this.poisonDamage = data.poisonDamage ?? 0;
+    this.poisonTurns = data.poisonTurns ?? 0;
+
+    this.isDead = data.isDead ?? false;
+
+    // Можно расширять позже
+    this.buffs = data.buffs ?? [];
+    this.intent = data.intent ?? null;
+  }
+
+  takeDamage(amount) {
+    let dmg = amount;
+
+    // 1) щит
+    if (this.shield > 0) {
+      const absorbed = Math.min(dmg, this.shield);
+      this.shield -= absorbed;
+      dmg -= absorbed;
     }
 
-    takeDamage(amount) {
-        let damageToDeal = amount;
-
-        // 1. Сначала урон идет в щит
-        if (this.shield > 0) {
-            if (this.shield >= damageToDeal) {
-                this.shield -= damageToDeal;
-                damageToDeal = 0;
-            } else {
-                damageToDeal -= this.shield;
-                this.shield = 0;
-            }
-        }
-
-        // 2. Остаток урона идет в HP
-        this.hp -= damageToDeal;
-
-        // 3. Проверка на смерть
-        if (this.hp <= 0) {
-            this.hp = 0;
-            this.isDead = true;
-        }
-
-        return {
-            damageDealt: amount, // Для отображения цифр урона (можно возвращать damageToDeal, если хотим показывать чистый урон по хп)
-            isDead: this.isDead
-        };
+    // 2) HP
+    if (dmg > 0) {
+      this.hp -= dmg;
+      if (this.hp <= 0) {
+        this.hp = 0;
+        this.isDead = true;
+      }
     }
 
-    heal(amount) {
-        this.hp = Math.min(this.hp + amount, this.maxHp);
-    }
+    return {
+      damageDealt: amount,
+      isDead: this.isDead,
+    };
+  }
 
-    addShield(amount) {
-        this.shield += amount;
-    }
+  heal(amount) {
+    this.hp = Math.min(this.maxHp, this.hp + amount);
+  }
+
+  addShield(amount) {
+    this.shield += amount;
+  }
+
+  clearStatusEffects() {
+    this.shield = 0;
+    this.poisonDamage = 0;
+    this.poisonTurns = 0;
+  }
 }
